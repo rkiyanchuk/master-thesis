@@ -1,0 +1,268 @@
+% AUTHOR: Ruslan Kiianchuk <ruslan.kiianchuk@gmail.com>
+
+\chapter{Description of developed methods for software implementation}
+\label{sec:implementation}
+
+\section{Tools and software used for computations}
+\label{sec:soft-and-tools}
+
+All computations in this thesis are performed using only free open source
+software. The computer algebra system used for algorithm implementations and
+experiments is ``SAGE: Software for Algebra and Geometry Experimentation''
+which is provided under the terms of the GNU General Public
+License~\cite{sage}. SAGE is described as a ``free and open software that
+supports research and teaching in algebra, geometry, number theory,
+cryptography, etc.''~\cite{sage-core}.
+
+For this thesis the most used components of SAGE were Singular
+computer algebra system~\cite{singular}, PolyBoRi C++ library for efficient
+reduced Gr\"obener basis computation~\cite{polybori}, and \verb+crypto+ module for cryptography
+related routines.
+
+
+\section{Usage of implemented functionality}
+\label{sec:soft-usage}
+
+The implementation architecture of \gost\ cipher and its equation system
+generator is inspired by CTC cipher algebraic cryptanalysis description
+in~\cite{Albrecht2006}.
+
+Computation of solutions for multivariate algebraic systems of equations is
+performed by \mbox{CryptoMiniSat}~\cite{soos:cryptominisat}, a
+SAT~Race~2010~\cite{satrace2010} winning SAT solver licensed under GNU Lesser
+General Public License.
+
+Conversion of the polynomial system from ANF to CNF format and parsing the
+results of \mbox{CryptoMiniSat} computations is done by \verb+anf2cnf.py+
+script~\cite{anf2cnf}.
+
+
+\subsection{\gost\ implementation}
+\label{sec:soft-gost}
+
+The \verb+Gost+ class implements \gost\ cryptographic algorithm and its
+multivariate quadratic equation system generator. The implementation is not
+efficient since it treats every bit as a boolean polynomial ring element, so it
+is useful for researching purposes only. 
+
+One can customize \gost\ parameters (like input block size, number of rounds, key
+addition mode and subkeys ordering) to get small scale cipher. A cipher instance
+compliant with the specification defined in the standard may be constructed as
+shown in listing~\ref{lst:spawn_gost}:
+\begin{lstlisting}[label=lst:spawn_gost, caption=Creating GOST instance]
+sage: gost = Gost(block_size=64, rounds=32, key_add='mod', key_order='frwrev')
+sage: print Gost()
+GOST cipher (Block Size = 64, Rounds = 32, Key Addition = mod, Key Order = frwrev)
+\end{lstlisting}
+Those parameters are default and so may be omitted. To create the small scale
+version of \gost\ one can specify smaller values for parameters
+(listing~\ref{lst:small_gost}):
+\begin{lstlisting}[label=lst:small_gost, caption=Small scale GOST]
+sage: gost = Gost(block_size=8, rounds=3, key_add='mod', key_order='frw')
+sage: print gost.ring
+Boolean PolynomialRing in K00, K01, K02, K03, Y00, Y01, Y02, Y03, Z00, Z01, Z02, Z03, K10, K11, K12, K13, Y10, Y11, Y12, Y13, Z10, Z11, Z12, Z13, K20, K21, K22, K23, Y20, Y21, Y22, Y23, Z20, Z21, Z22, Z23, X00, X01, X02, X03, X04, X05, X06, X07, X10, X11, X12, X13, X14, X15, X16, X17, X20, X21, X22, X23, X24, X25, X26, X27, X30, X31, X32, X33, X34, X35, X36, X37
+\end{lstlisting}
+
+Cipher variables are defined over boolean polynomial ring. The used notation
+is described in section~\ref{seq:key-add-eqn}. In SAGE implementation left digits of the variable index
+identify round number and right digits specify the number of bit defined by the
+variable. For instance, variable \verb+K0325+ defines 25-th bit of a subkey for round 3. It is
+worth noting that for small block sizes the cyclic shift value is
+proportionally decreased from 11 bits to 
+$\text{ceil}(\text{block\_length} / 3)$,
+where $\text{ceil}(x)$ stands for the smallest integer not less than $x$. The
+minimum block size is 8 bits since the cipher becomes degenerated with smaller
+input blocks.
+There are two possible modes for key addition: \verb+mod+ for a standard modular
+addition and \verb+xor+ for simple XORing. Also two subkey orderings are
+supported: \verb+frwrev+ is for the default ordering when subkeys are reversed on
+the last 8 rounds and \verb+frw+ for no reversing. Default S-boxes used in the
+cipher are those proposed in GOST~R~31.11-94~\cite{GOST3411} and given in
+appendix~\ref{app:gost-sboxes}.
+
+Obtaining polynomial system for \gost\ cryptoalgorithm is shown in
+listing~\ref{lst:obtain_sys}:
+
+\begin{lstlisting}[label=lst:obtain_sys, caption=Obtaining polynomial system]
+sage: gost = Gost()
+sage: gost.polynomial_system()
+Polynomial Sequence with 10432 Polynomials in 4416 Variables
+\end{lstlisting}
+
+
+\subsection{\misty\ implementation}
+
+The \verb+Misty+ class implements \misty\ cryptographic algorithm and its
+multivariate equations system generator. Its interface is similar to that one of 
+\gost. The implementation is not
+efficient since it treats every bit as a boolean polynomial ring element, so it
+is useful for researching purposes only. 
+
+A required parameter is the number of rounds for the cipher which should be
+multiple of $4$ according to the specification. An optional argument is a prefix
+that will be prepended to the names of variables for the equations system. This
+is used when combining several systems.
+
+An instance of \misty\ polynomial system generator may be created as shown in
+listing~\ref{lst:spawn_misty}.
+\begin{lstlisting}[label=lst:spawn_misty, caption=Creating MISTY1 instance]
+sage: m = Misty(8)         
+sage: m.polynomial_system()
+Polynomial Sequence with 8448 Polynomials in 3680 Variables
+\end{lstlisting}
+
+A decorator \verb+@groebner_basis+ for post-processing the equations via
+Gr\"obner basis is implemented and should decorate every function, for which
+equations the Gr\"obner basis should be computed as show on
+listing~\ref{lst:misty_groebner}).
+
+\begin{lstlisting}[label=lst:misty_groebner, caption=Misty Gr\"obner basis]
+     @groebner_basis                                                             
+     def s7(self, x, r=None):                                                    
+         y = [0] * len(x)
+         ...
+\end{lstlisting}
+
+
+\subsection{Solving polynomial systems}
+\label{sec:soft-solving}
+
+Obtaining an equation system for the cipher is not enough for recovering an
+encryption key. Information about plaintext and ciphertext has to be injected
+into equation system by substituting corresponding variables. Also a single
+equation system for the specified plaintext and ciphertext does not allow to get a
+solution for the key variables, so an ability to combine several equation
+systems with different plaintext and ciphertext pairs is needed.
+
+Injecting variable values is implemented by adding new \verb+inject+ method to
+a standard \verb+PolynomialSequence_generic+ class and is shown in
+listing~\ref{lst:var-inject}.
+
+\begin{lstlisting}[label=lst:var-inject, caption=Injecting variable values into equation system]
+sage: gost = Gost(block_size=64, rounds=5, key_add='mod', key_order='frw')             
+sage: plaintext = gost.random_block()                                                  
+sage: key = gost.random_key()                                                          
+sage: ciphertext = gost.encrypt(plaintext, key)                                        
+sage: f = gost.polynomial_system()                                                     
+sage: print f                                                                        
+Polynomial Sequence with 1630 Polynomials in 864 Variables
+sage: f2 = f.inject(gost.gen_vars(gost.var_names['block'], 0), plaintext)   
+sage: f2 = f2.inject(gost.gen_vars(gost.var_names['block'], 5), ciphertext)
+sage: print f2
+Polynomial Sequence with 1630 Polynomials in 736 Variables
+\end{lstlisting}
+
+For combining several equation systems one should use \verb+join_systems+
+function (listing~\ref{lst:combine}) which accepts a list of polynomial systems
+with injected known variables and a list of cipher instances for which the
+systems were constructed. The function will construct a new boolean polynomial
+ring that would include variables from all systems and have the same variables
+for encryption subkeys. Consequently, the joined equation systems must contain ciphertexts
+obtained on the same key, otherwise combining such systems would not help to
+find the solution. In order to distinct variables from different equation systems
+one should add a \verb+prefix+ string when constructing a cipher object as
+shown in listing~\ref{lst:combine}.
+\begin{lstlisting}[label=lst:combine, caption=Combining several equation systems]
+sage: gost1 = Gost(block_size=64, rounds=3, key_add='mod', key_order='frw', prefix='a')
+sage: gost2 = Gost(block_size=64, rounds=3, key_add='mod', key_order='frw', prefix='b')
+sage: plaintext1 = gost1.random_block()                                                
+sage: plaintext2 = gost1.random_block()                                                
+sage: key = gost1.random_key()                                                         
+sage: ciphertext1 = gost1.encrypt(plaintext1, key)                                     
+sage: ciphertext2 = gost2.encrypt(plaintext2, key)                                     
+sage: f1 = gost1.polynomial_system()                                                   
+sage: f2 = gost2.polynomial_system()
+sage: f1 = f1.inject(gost1.gen_vars(gost1.var_names['block'], 0), plaintext1)          
+sage: f1 = f1.inject(gost1.gen_vars(gost1.var_names['block'], 5), ciphertext1)
+sage: f2 = f2.inject(gost2.gen_vars(gost2.var_names['block'], 0), plaintext2) 
+sage: f2 = f2.inject(gost2.gen_vars(gost2.var_names['block'], 5), ciphertext2)
+sage: f = join_systems([f1, f2], [gost1, gost2])
+sage: print f1
+Polynomial Sequence with 978 Polynomials in 416 Variables
+sage: print f2
+Polynomial Sequence with 978 Polynomials in 416 Variables
+sage: f1 == f2
+False
+sage: f = join_systems([f1, f2], [gost1, gost2])                                               
+sage: print f
+Polynomial Sequence with 1956 Polynomials in 736 Variables
+\end{lstlisting}
+
+
+All functionality for solving the \gost\ and \misty\  polynomial systems is now
+implemented.  Two approaches are used for solving equation systems: using
+reduced Gr\"obner basis and using SAT solver. 
+
+In listing~\ref{lst:solving-groebner} computing the reduced
+Gr\"obner basis for polynomial system is demonstrated. Since all equations in the resulting list
+equal 0 it is possible to extract the values of the key bits. In this case the
+method allowed to recover only 91 out of 96 subkeys bits for a 3 round GOST
+polynomial system.
+\begin{lstlisting}[label=lst:solving-groebner, caption=Solving equation system using reduced Gr\"obner basis]
+sage: ideal = f.ideal()
+sage: basis = ideal.interreduced_basis()
+Polynomial Sequence with 735 Polynomials in 736 Variables
+sage: key = [i for i in sorted(basis) if str(i).startswith(gost1.var_names['key'])]
+sage: print key
+[K0229, K0228, K0221, K0220, K0223 + 1, K0222, K0225, K0224, K0227 + 1, K0226, K0131, K0130, K0001, K0000 + 1, K0003, K0002, K0005 + 1, K0004, K0007, K0006, K0009 + bY0009, K0008, K0230 + 1, K0231 + 1, K0126 + 1, K0127 + 1, K0124 + 1, K0125, K0122, K0123, K0120 + bY0009, K0121 + bY0009 + 1, K0128, K0129 + 1, K0012 + 1, K0013, K0010 + 1, K0011 + 1, K0016, K0017, K0014 + 1, K0015, K0018, K0019 + 1, K0203 + 1, K0202 + 1, K0201 + 1, K0200 + 1, K0207 + 1, K0206, K0205 + 1, K0204 + 1, K0209 + 1, K0208 + bY0009 + 1, K0119 + bY0009, K0118, K0117, K0116, K0115 + 1, K0114, K0113, K0112, K0111 + 1, K0110 + 1, K0029 + 1, K0028, K0023 + 1, K0022, K0021 + 1, K0020, K0027, K0026 + 1, K0025 + 1, K0024, K0218 + 1, K0219 + 1, K0214, K0215, K0216 + 1, K0217, K0210, K0211, K0212 + 1, K0213 + 1, K0108, K0109 + 1, K0100 + 1, K0101 + 1, K0102, K0103, K0104, K0105 + 1, K0106, K0107, K0030, K0031]
+\end{lstlisting}
+
+For solving an equation system $f$ with CryptoMiniSat solver via SAGE one needs to
+install CryptoMiniSat available at~\cite{soos:cryptominisat} first. Then use
+\verb+anf2cnf.py+ script provided at~\cite{anf2cnf} for converting the polynomial
+system to DIMACS CNF format, call CryptoMiniSat for solving the system and
+parse the result back into SAGE as shown in
+listing~\ref{lst:solving-sat-example}. In the example the $s$ variable will
+store a solution dictionary and $t$ will be initialized by the time needed for
+computation.
+\begin{lstlisting}[label=lst:solving-sat-example, caption=Solving equation system using SAT solver]
+sage: solver = ANFSatSolver(f.ring())
+sage: s, t = solver(f)
+\end{lstlisting}
+
+\mbox{CryptoMiniSat} solver is more efficient and allows to solve a 6 round GOST
+equation system on regular laptop with 2~GHz processor in minutes
+(listing~\ref{lst:solving-sat}). Some code is omitted for clarity and is
+indicated with dots. Full source code for solving 6 rounds polynomial system is
+presented in appendix~\ref{app:solving-sat}. 
+\begin{lstlisting}[label=lst:solving-sat, caption=Solving 6 round GOST system using SAT solver]
+...
+sage: f = join_systems(mqsystems, gosts)
+sage: solver = ANFSatSolver(f.ring())
+sage: print time.ctime(); s, t = solver(f); print time.ctime();
+Sat May 12 22:13:00 2012
+Sat May 12 22:13:41 2012
+...
+sage: print key == recovered_key                                                                             
+True
+sage: print gosts[0].encrypt(inputs[0],  key) == gosts[0].encrypt(inputs[0], recovered_key) == outputs[0]    
+True
+\end{lstlisting}
+
+The \misty\ equations system may be solved using Sage interface to available
+SAT-solvers (listing~\ref{lst:sat_solve}).
+\begin{lstlisting}[label=lst:sat_solve, caption=Using Sage SAT interface]
+sage: from sage.sat.boolean_polynomials import solve as sat_solve
+sage: m = Misty(4)
+sage: F = m.polynomial_system()
+sage: print F
+Polynomial Sequence with 5156 Polynomials in 2248 Variables
+\end{lstlisting}
+
+\section{Summary}
+
+Due to multiple interfaces supported by SAGE it is possible to efficiently
+combine various tools for achieving optimal results. In this work the interface
+to Singular has been used for computing reduced Gr\"obner basis which managed
+to solve 3 round GOST equation system.
+\mbox{CryptoMiniSat} solver with \verb+anf2cnf.py+ as a conversion layer
+enabled 6 round equation system to be efficiently solved in minutes. There is a
+substantial complexity hop for computing 7 rounds, but even though the solution
+hasn't been found using regular computer, the memory usage is negligible. So
+further optimizations including parallelizing and tweaking SAT algorithm
+parameters should result in solving more rounds for GOST~28147 polynomial
+system.
+
+Current source code of the \gost\ and \misty\  polynomial system generator is
+published by the author at~\cite{zoresvit:repo-algebraic} and the thesis sources
+are published at~\cite{zoresvit:thesis}.

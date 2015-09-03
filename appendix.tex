@@ -1,0 +1,1458 @@
+% AUTHOR: Ruslan Kiianchuk <ruslan.kiianchuk@gmail.com>
+
+\makeatletter
+\renewcommand\chapter{\if@openright\cleardoublepage\else\clearpage\fi
+                    \thispagestyle{plain}%
+                    \global\@topnum\z@
+                    \@afterindentfalse
+                    \secdef\@chapter\@schapter}
+\def\@chapter[#1]#2{\ifnum \c@secnumdepth >\m@ne
+                       \if@mainmatter
+                         \refstepcounter{chapter}%
+                         \typeout{\@chapapp\space\thechapter.}%
+                         \addcontentsline{toc}{chapter}%
+                         {\appendixtocname\ \thechapter\ \texorpdfstring{\MakeUppercase{#1}}{#1}}%
+                       \else
+                       \addcontentsline{toc}{chapter}{\appendixtocname\ \texorpdfstring{\MakeUppercase{#1}}{#1}}%
+                       \fi
+                    \else
+                    \addcontentsline{toc}{chapter}{\appendixtocname\ \texorpdfstring{\MakeUppercase{#1}}{#1}}%
+                    \fi
+                    \chaptermark{#1}%
+                    \addtocontents{lof}{\protect\addvspace{10\p@}}%
+                    \addtocontents{lot}{\protect\addvspace{10\p@}}%
+                    \if@twocolumn
+                      \@topnewpage[\@makechapterhead{#2}]%
+                    \else
+                      \@makechapterhead{#2}%
+                      \@afterheading
+                    \fi}
+\makeatother
+
+
+\appendix
+
+\append{GOST~28147-89 equations generator}
+\label{app:gost}
+
+\begin{lstlisting}
+from copy import deepcopy
+from sage.crypto.mq.sbox import SBox
+from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
+from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence_generic
+
+
+def inject(self, vars, values):
+    sub_values = dict(zip(vars, values))
+    return self.subs(sub_values)
+PolynomialSequence_generic.inject = inject
+
+def join_systems(mqsystems, instances):
+    var_names = flatten([i.ring.variable_names() for i in instances])
+    common_vars = list(set(var_names))
+    common_ring = BooleanPolynomialRing(len(common_vars), common_vars, \
+                                        order='degrevlex')
+    new_mqsystem = PolynomialSequence([], common_ring)
+    for s in mqsystems:
+        new_mqsystem.extend(list(s))
+    return new_mqsystem
+
+
+class Gost:
+    def _varformatstr(self, name):
+        l = str(max([len(str(self.nrounds)), len(str(self.block_size - 1))]))
+        return name + "%0" + l + "d" + "%0" + l + "d"
+
+    def _varstrs(self, name, round):
+        s = self._varformatstr(name)
+        if s.startswith(self.var_names['block']):
+            return [s % (round, i) for i in range(self.block_size)]
+        else:
+            return [s % (round, i) for i in range(self.halfblock_size)]
+
+    def gen_vars(self, name, round_):
+        return [self.ring(e) for e in self._varstrs(name, round_)]
+
+    def int2bits(self, num, bits):
+        num = Integer(num)
+        return num.digits(base=2, padto=Integer(bits))
+
+    def bits2int(self, num_bits):
+        num = ''.join([str(i) for i in reversed(num_bits)])
+        return int(num, 2)
+
+    def __init__(self, **kwargs):
+        self.SBOX_SIZE = 4
+        self.nrounds = kwargs.get('rounds', 32)
+        if self.nrounds < 8:
+            self.key_length = self.nrounds
+        else:
+            if self.nrounds % 8 != 0:
+                raise ValueError('Number of rounds must be multiple of 8')
+            self.key_length = 8
+        self.block_size = kwargs.get('block_size', 64)
+        if self.block_size % self.SBOX_SIZE != 0 or self.block_size < 8:
+            raise ValueError('Block size must be multiple of 4 
+                    (due to SBox) and greater than 8 (due S-box size)')
+        self.halfblock_size = self.block_size / 2
+        self.key_order = kwargs.get('key_order', 'frwrev')
+        if self.key_order not in ['frw', 'frwrev']:
+            raise ValueError('Unsupported key ordering')
+        if self.key_order is 'frwrev' and self.nrounds % 8 != 0:
+            raise ValueError('frwrev key ordering is only possible 
+                    for nrounds to be multiple of 8')
+        self.key_add = kwargs.get('key_add', 'mod')
+        if self.key_add not in ['mod', 'xor']:
+            raise ValueError('key_add may be set to `mod` or `xor`')
+
+        self._init_sboxes(kwargs.get('sboxes', None))
+        pre = kwargs.get('prefix', '')
+        self.var_names = {'key': 'K', 
+                'block': pre + 'X', 
+                'sum': pre + 'Y',
+                'sbox': pre + 'Z'}
+        self.gen_ring()
+
+    def _init_sboxes(self, sboxes):
+        self._default_sboxes = [
+                [4, 10, 9, 2, 13, 8, 0, 14, 6, 11, 1, 12, 7, 15, 5, 3],
+                [14, 11, 4, 12, 6, 13, 15, 10, 2, 3, 8, 1, 0, 7, 5, 9],
+                [5, 8, 1, 13, 10, 3, 4, 2, 14, 15, 12, 7, 6, 0, 9, 11],
+                [7, 13, 10, 1, 0, 8, 9, 15, 14, 4, 6, 12, 11, 2, 5, 3],
+                [6, 12, 7, 1, 5, 15, 13, 8, 4, 10, 9, 14, 0, 3, 11, 2],
+                [4, 11, 10, 0, 7, 2, 1, 13, 3, 6, 8, 5, 9, 12, 15, 14],
+                [13, 11, 4, 1, 3, 15, 5, 9, 0, 10, 14, 7, 6, 8, 2, 12],
+                [1, 15, 13, 0, 5, 7, 10, 4, 9, 2, 3, 14, 6, 11, 8, 12]
+                ]
+        if not sboxes:
+            sboxes = self._default_sboxes
+        else:
+            for s in sboxes:
+                if len(s) != 2 ^ self.SBOX_SIZE: 
+                    raise TypeError('S-box must be 4x4 bits (0..15)')
+        self.sboxes = [SBox(i, big_endian=False) for i in sboxes]
+
+    def gen_ring(self):
+        nr = self.nrounds
+        bs = self.block_size
+        hbs = self.halfblock_size
+        var_names = []
+        halfblock_vars = [self.var_names['key'], \
+                            self.var_names['sum'], \
+                            self.var_names['sbox']]
+        for r in range(nr):
+            var_names += [self._varformatstr(v) % (r, b) 
+                    for v in halfblock_vars for b in xrange(hbs)]
+        for r in range(nr + 1):
+            var_names += [self._varformatstr(self.var_names['block']) % (r, b) 
+                    for b in xrange(bs)]
+        self.ring = BooleanPolynomialRing(len(var_names), var_names, \
+                                            order='degrevlex') 
+        return self.ring
+
+    def polynomial_system(self):
+        hbs = self.halfblock_size
+        mqsystem_parts = []
+
+        kvars = list()
+        for i in range(self.key_length):
+            kvars.append(map(self.ring, \
+                    self.gen_vars(self.var_names['key'], i)))
+
+        for i in range(self.nrounds):
+            xvars = map(self.ring, self.gen_vars(self.var_names['block'], i))
+            yvars = map(self.ring, self.gen_vars(self.var_names['sum'], i))
+            zvars = map(self.ring, self.gen_vars(self.var_names['sbox'], i))
+            next_xvars = map(self.ring, \
+                    self.gen_vars(self.var_names['block'], i + 1))
+            polynomials = []
+            
+            if self.key_order == 'frwrev' and \
+                    i >= (self.nrounds - self.key_length):
+                k = self.key_length - 1 - (i % self.key_length)
+            else:
+                k = i % self.key_length
+            polynomials += self.add_round_key(xvars[:hbs], kvars[k], yvars)
+            polynomials += self.polynomials_sbox(yvars, zvars)
+            zvars = self.shift(zvars)
+            xored = self.xor_blocks(xvars[hbs:], zvars)
+            if i < self.nrounds - 1:
+                # R_{i+1} = L_i xor f(R_i)
+                polynomials += [x + y for x, y in zip(xored, \
+                                                        next_xvars[:hbs])]
+                # L_{i+1} = R_i
+                polynomials += [x + y for x, y in zip(xvars[:hbs], \
+                                                        next_xvars[hbs:])]
+            else:
+                # No block swapping in the last round.
+                # R_{i+1} = L_i
+                polynomials += [x + y for x, y in zip(xvars[:hbs], \
+                                                        next_xvars[:hbs])]
+                # L_{i+1} = L_i xor f(R_i)
+                polynomials += [x + y for x, y in zip(xored, \
+                                                        next_xvars[hbs:])]
+            mqsystem_parts.append(polynomials)
+        return PolynomialSequence(mqsystem_parts, self.ring)
+
+    def polynomials_sbox(self, yvars, zvars):
+        polynomials = list()
+        sboxes = deepcopy(self.sboxes)
+        for i in range(self.halfblock_size / self.SBOX_SIZE):
+            nbit = i * self.SBOX_SIZE
+            current_sbox = sboxes[i % len(sboxes)]
+            pols = current_sbox.polynomials()
+            gens = current_sbox.ring().gens()
+            new_gens = yvars[nbit:nbit + self.SBOX_SIZE] + \
+                    zvars[nbit:nbit + self.SBOX_SIZE] 
+            sub = dict(zip(gens, new_gens))
+            pols = [p.subs(sub) for p in pols]
+            polynomials += pols
+        return polynomials
+
+    def __repr__(self):
+        gost_id = 'GOST cipher '
+        gost_id += '(Block Size = %d, Rounds = %d, '
+        gost_id += 'Key Addition = %s, Key Order = %s)' 
+        params = (self.block_size, self.nrounds, self.key_add, self.key_order)
+        return gost_id % params
+
+    def add_round_key(self, a, b, r=[]):
+        hbs = self.halfblock_size
+        is_defined  = lambda vals: all([p.constant() for p in vals])
+        # If all variables are defined, just compute the result instead of
+        # generating polynomials.
+        if is_defined(a) and is_defined(b):
+            if self.key_add is 'mod':
+                data = self.bits2int(a)
+                subkey = self.bits2int(b)
+                modulo_mask = (1 << hbs) - 1
+                result = (data + subkey) & modulo_mask
+                return [self.ring(i) for i in self.int2bits(result, hbs)]
+            if self.key_add is 'xor':
+                return [x + y for x, y, in zip(a, b)]    
+        else:
+            if self.key_add is 'mod':
+                pols = list()
+                pols.append(a[0] + b[0] + r[0]) 
+                for i in range(0, hbs - 1):
+                    pols.append(a[i] + a[i] * r[i] + a[i] * r[i+1] + a[i] *
+                            a[i+1] + a[i] * b[i+1] + r[i] * r[i+1] + r[i] *
+                            a[i+1] + r[i] * b[i+1])
+                    pols.append(b[i] + b[i] * r[i] + b[i] * r[i+1] + b[i] *
+                            a[i+1] + b[i] * b[i+1] + r[i] * r[i+1] + r[i] *
+                            a[i+1] + r[i] * b[i+1])
+                    pols.append(a[i] * r[i] + b[i] * r[i] + a[i] * b[i] + a[i]
+                            + b[i] + r[i+1] + a[i+1] + b[i+1])
+                return pols
+            if self.key_add is 'xor':
+                return [x + y + z for x, y, z in zip(r, a, b)]    
+
+    def shift(self, halfblock):
+        shift = ceil(self.halfblock_size / 3)
+        halfblock = halfblock[self.halfblock_size-shift:self.halfblock_size]+\ 
+                halfblock[0:self.halfblock_size-shift]
+        return halfblock
+
+    def substitute(self, halfblock):
+        result = []
+        for i in range(self.halfblock_size / self.SBOX_SIZE):
+            nbit = i * self.SBOX_SIZE
+            plain = halfblock[nbit:nbit + self.SBOX_SIZE]
+            sub = self.sboxes[i % len(self.sboxes)](plain)
+            sub = [self.ring(j) for j in sub]
+            result += sub
+        return result
+
+    def xor_blocks(self, left, right):
+        return [x + y for x, y in zip(left, right)]
+
+    def feistel_round(self, block, subkey):
+        hbs = self.halfblock_size
+        bs = self.block_size
+        n1 = block[0:hbs] # left
+        n2 = block[hbs:bs]; # right
+        temp = n1
+        n1 = self.add_round_key(n1, subkey)
+        n1 = self.substitute(n1);
+        n1 = self.shift(n1);
+        n2 = self.xor_blocks(n1, n2)
+        n1 = temp
+        return n2 + n1
+
+    def _cast_params(self, data_, key_):
+        bs = self.block_size
+        data = deepcopy(data_)
+        key = deepcopy(key_)
+        if not isinstance(data, list):
+            data = self.int2bits(data, bs)
+        data = [self.ring(i) for i in data]
+        if len(key) != self.key_length:
+            raise TypeError('Key should be of length ' + str(self.key_length))
+        # coerse key bits to ring elements
+        for i in range(len(key)):
+            if not isinstance(key[i], list):
+                key[i] = self.int2bits(key[i], self.halfblock_size)
+            key[i] = [self.ring(j) for j in key[i]]
+        return data, key
+
+    def encrypt(self, data_, key_):
+        hbs = self.halfblock_size
+        bs = self.block_size
+        if isinstance(data_, list):
+            is_list = true;
+        else:
+            is_list= false;
+        data, key = self._cast_params(data_, key_)
+
+        for i in range(self.nrounds):
+            if self.key_order == 'frwrev' and \
+                    i >= (self.nrounds - self.key_length):
+                k = self.key_length - 1 - (i % self.key_length)
+            else:
+                k = i % self.key_length
+            data = self.feistel_round(data, key[k])
+        data = data[hbs:bs] + data[0:hbs]
+        if is_list:
+            return data
+        else:
+            return self.bits2int(data)
+
+    def decrypt(self, data_, key_):
+        hbs = self.halfblock_size
+        bs = self.block_size
+        if isinstance(data_, list):
+            is_list = true;
+        else:
+            is_list= false;
+        data, key = self._cast_params(data_, key_)
+
+        key.reverse()
+        for i in range(self.nrounds):
+            if self.key_order == 'frwrev' and i < self.key_length:
+                k = self.key_length - 1 - (i % self.key_length)
+            else:
+                k = i % self.key_length
+            data = self.feistel_round(data, key[k])
+        data = data[hbs:bs] + data[0:hbs]
+        if is_list:
+            return data
+        else:
+            return self.bits2int(data)
+
+    def random_key(self):
+        key = [list(random_vector(int(self.halfblock_size), x=2)) 
+                for _ in range(self.key_length)]
+        key = [map(self.ring, i) for i in key]
+        return key
+
+    def random_block(self):
+        return map(self.ring, list(random_vector(self.block_size, x=2)))
+
+    def test_mqsystem(self, f_):
+        if f_.ring() is not self.ring:
+            raise TypeError('Tested MQ system has been generated by a ' 
+                    'different GOST instance')
+        f = deepcopy(f_)
+        print 'Testing MQ system', f
+        bs = self.block_size
+        plaintext = self.random_block()
+        key = self.random_key()
+        ciphertext = self.int2bits(self.encrypt(plaintext, key), bs)
+        f = f.subs(dict(zip(self.gen_vars(self.var_names['block'], \
+                                            0), plaintext)))
+        f = f.subs(dict(zip(self.gen_vars(self.var_names['block'], \
+                                            self.nrounds), ciphertext)))
+        for i in range(self.nrounds):
+            k = i % self.key_length
+            f = f.subs(dict(zip(self.gen_vars(self.var_names['key'], i), \
+                                                                key[k])))
+        s = f.ideal().interreduced_basis()
+        if s == [1]:
+            print 'MQ System for' + str(self) + 'is INCORRECT'
+            print f
+            return False
+        else:
+            return True
+
+
+    def test_cipher(self):
+        keys = [
+                [0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0], 
+                [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, \
+                    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF], 
+                [0x01234567, 0x89ABCDEF, 0x01234567, 0x89ABCDEF, \
+                    0x01234567, 0x89ABCDEF, 0x01234567, 0x89ABCDEF], 
+                [0x6ebabf8d, 0x1a8cad60, 0x124744f9, 0xd400b5d8, \
+                    0xa721e3fd, 0x11d0702d, 0x06fd4827, 0x476df4bf]
+                ]
+        plain = [
+                0x0000000000000000, 0xBDBDBDBDACACACAC, 0xFFFFFFFFFFFFFFFF, \
+                    0x89ABCDEF01234567, 0xC0AE942BC8A99A39
+                ]
+        cipher = [
+                0x12610BE2A6C2FDC9, 0xA587E5D3F6DFB6F4, 0x029BFE67A9364E44, \
+                    0x523FC1A6AEC71B9A, 0x780CB7CE063F59E2,
+                0x9057C2CF13AAAD6D, 0xF7B085BA4771F406, 0x780416781B29BC06, \
+                    0xE596A183FD645558, 0x8EC42736538740AB,
+                0xF1956B1D0A1A67DE, 0x9E4C808408DCDBDC, 0x7738AF92DE8FC770, \
+                    0x9C44633FCEC0A03E, 0xC23013406002E268,
+                0x91DB8E1FE489FAEF, 0x547BF353604A8190, 0x92B517E3CC91B9D0, \
+                    0x1F5C2195762513E2, 0xE99D1C8DFF44A74C
+                ]
+
+        def show_failed(plain, key, result, expected):
+            print 'GOST FAILED'
+            print 'key:\t\t', ['0x%8.8X' % subk for subk in key]
+            print 'plaintext:\t', "0x%16.16X" % plain
+            print 'expected:\t', "0x%16.16X" % expected
+            print 'actual:\t\t', "0x%16.16X" % result
+
+        if self.block_size == 64 and self.nrounds == 32 and \
+                self.key_add == 'mod' and self.key_order == 'frwrev':
+            print 'Testing ', self, 'using test vectors...'
+            it = cipher.__iter__()
+            for k in keys:
+                for p in plain:
+                    c = self.encrypt(p, k)
+                    expected = it.next() 
+                    if c != expected:
+                        show_failed(p, k, c, expected)
+                        return False
+        print 'Testing', self, 'by correct decryption...'
+        x = randint(0, 2^self.block_size)
+        key = list(random_vector(self.key_length, x = 2^self.block_size))
+        c = self.encrypt(x, key)
+        d = self.decrypt(c, key)
+        if x != d:
+            show_failed(x, key, d, x)
+            return False
+        return True
+\end{lstlisting}
+
+
+\append{Solving 6 rounds of \gost\ \mbox{equations} system}
+\label{app:solving-sat}
+
+\begin{lstlisting}
+attach gost.sage
+attach anf2cnf.py
+
+nr = 5
+bs = 64
+hbs = int(bs/2)
+varnames = ['a', 'b', 'c', 'd']
+gosts = [Gost(block_size=bs, 
+    rounds=nr, 
+    key_add='mod', 
+    key_order='frw', 
+    prefix=i) for i in varnames]
+
+print 'constructing MQ systems...'
+mqsystems = [i.polynomial_system() for i in gosts]
+
+print 'generating plaintext/ciphertext data...'
+inputs = [i.random_block() for i in gosts]
+key = gosts[0].random_key()
+outputs = [gosts[i].encrypt(inputs[i], key) for i in range(len(gosts))]
+
+print  'injecting known variables...'
+for i in range(len(mqsystems)):
+    mqsystems[i] = mqsystems[i].inject(gosts[i].gen_vars(
+            gosts[i].var_names['block'], 0), inputs[i])
+    mqsystems[i] = mqsystems[i].inject(gosts[i].gen_vars(
+            gosts[i].var_names['block'], nr), outputs[i])
+
+print 'combining MQ systems...'
+f = join_systems(mqsystems, gosts)
+
+print 'solving MQ system with SAT solver...'
+print time.ctime()
+solver = ANFSatSolver(f.ring())
+s, t = solver(f)
+print 'DONE'
+print time.ctime()
+
+recovered_key = []
+r = f.ring()
+for i in range(len(key)):
+    var_names = map(str, gosts[0].gen_vars(
+            gosts[0].var_names['key'], i))
+    var_names.sort()
+    var_names = map(r, var_names)
+    recovered_key.append([s[j] for j in var_names])
+
+if gosts[0].int2bits(gosts[0].encrypt(
+    inputs[0], recovered_key), bs) == outputs[0]:
+    if key == recovered_key:
+        print recovered_key
+    else:
+        print 'FOUND ANOTHER KEY'
+        print 'actual'
+        print key
+        print 'found'
+        print recovered_key
+\end{lstlisting}
+
+
+\append{\misty\ equations generator}
+
+\begin{lstlisting}
+#!/usr/bin/env sage
+# -*- coding: utf-8 -*-
+
+import operator
+
+from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
+
+
+def split(l, chunk_size):
+    """Split flat list into nested lists of length `chunk_size`. If the
+    `chunk_size` is not multiple of list length, the last sublist is added as
+    is without padding.
+
+    Args:
+        l: List to split into chunks.
+        chunk_size: Length of a single nested list.
+
+    Returns:
+        Nested list of chunks each of the length `chunk_size`.
+
+    """
+    return [l[i:i + chunk_size] for i in xrange(0, len(l), chunk_size)]
+
+
+def reverse(iterable):
+    """Return reversed iterable as list."""
+    return list(reversed(iterable))
+
+
+def vector_do(operation, a, b):
+    """Perform vector operation on two lists.
+
+    Args:
+        operation: binary operation to perform (from `operator` module).
+        a: first vector.
+        b: second vector.
+
+    Returns:
+        Resulting vector (represented as list).
+
+    Example:
+        vector_do(operator.__xor__, [1, 1, 1], [1, 0, 1])
+
+    """
+    if operation is operator.__xor__:
+        if is_constant(a) and is_constant(b):
+            return map(lambda x, y: operation(x, y), a, b)
+        else:
+            # Process variables over Boolean Polynomial Ring correctly.
+            return map(lambda x, y: operator.__add__(x, y), a, b)
+    elif operation is operator.__and__:
+        if is_constant(a) and is_constant(b):
+            return map(lambda x, y: operation(x, y), a, b)
+        else:
+            # Process variables over Boolean Polynomial Ring correctly.
+            return map(lambda x, y: operator.__mul__(x, y), a, b)
+    elif operation is operator.__or__:
+        if is_constant(a) and is_constant(b):
+            return map(lambda x, y: operation(x, y), a, b)
+        else:
+            # Process variables over Boolean Polynomial Ring correctly.
+            return map(lambda x, y: x * y + x + y, a, b)
+    else:
+        return map(lambda x, y: operation(x, y), a, b)
+
+
+def is_constant(vals):
+    """Check of all elements in list are contants, not variables."""
+    return all([isinstance(i, Integer) for i in vals])
+
+def groebner_basis(func):
+    """Decorator for Groebner basis reduce of polynomial system."""
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if not is_constant(result):
+            F = PolynomialSequence(result)
+            return F.groebner_basis()
+        else:
+            return result
+    return wrapper
+
+
+class Misty(object):
+    """Misty cipher class.
+
+    All method assume to take bit sequences as input. Use `get_bits` method to
+    convert integer to Misty bit sequence representation and `get_integer` to
+    obtain the corresponding integer back.
+
+    """
+
+    def get_bits(self, integer, nbytes=0):
+        """Convert integer to crazy Misty bit ordering. """
+        bytes = reverse(integer.digits(256, padto=nbytes))
+        bits = [reverse(b.digits(2, padto=8)) for b in bytes]
+        return flatten(bits)
+
+    def get_integer(self, bits):
+        """Convert crazy Misty bit sequence to sane ordering. """
+        bytes = reverse(split(bits, 8))
+        bytes = [reverse(b) for b in bytes]
+        return Integer(flatten(bytes), 2)
+
+    def __init__(self, nrounds, prefix='', equations_key_schedule=True):
+        """Create Misty cipher object.
+
+        It's a full scale cipher as well as its polynomial system generator.
+
+        Args:
+            nrounds: Number of enciphering rounds.
+            prefix: Prefix used for variables identification during polynomial
+                system construction.
+
+        """
+        self.nrounds = nrounds
+        self.prefix = prefix
+        self.equations_key_schedule = equations_key_schedule
+        self.block_size = 64
+        self.halfblock_size = self.block_size // 2
+        self.halfblock_size_fo = self.halfblock_size // 2
+        self.fi_left_size = 9
+        self.fi_right_size = 7
+        self.key = None
+        self.subkeys = None
+        self.gen_ring()
+        # Subkey type constants.
+        self.KEY_KO1 = 'ko1'
+        self.KEY_KO2 = 'ko2'
+        self.KEY_KO3 = 'ko3'
+        self.KEY_KO4 = 'ko4'
+        self.KEY_KI1 = 'ki1'
+        self.KEY_KI2 = 'ki2'
+        self.KEY_KI3 = 'ki3'
+        self.KEY_KL1 = 'kl1'
+        self.KEY_KL2 = 'kl2'
+
+    def kindex(self, subkey_type, i):
+        """Index subkey according to crazy Misty indexing rule.
+
+        Args:
+            subkey_type: string, indicating subkey type.
+            subkeys: list of subkey bits (each element contains 16 subkey
+                bits).
+            i: Misty round in range 1 <= i <= 8.
+
+        Returns:
+            16-bit subkey for corresponding index.
+        """
+        if i < 1:
+            raise ValueError('Subkey index must start from 1. '
+                             'Got {0} instead.'.format(i))
+
+        def normalize(x):
+            while x > 8:
+                x = x - 8
+            return x
+
+        if subkey_type == self.KEY_KO1:
+            return self.key[i - 1]
+        if subkey_type == self.KEY_KO2:
+            i = normalize(i + 2)
+            return self.key[i - 1]
+        if subkey_type == self.KEY_KO3:
+            i = normalize(i + 7)
+            return self.key[i - 1]
+        if subkey_type == self.KEY_KO4:
+            i = normalize(i + 4)
+            return self.key[i - 1]
+        if subkey_type == self.KEY_KI1:
+            i = normalize(i + 5)
+            return self.subkeys[i - 1]
+        if subkey_type == self.KEY_KI2:
+            i = normalize(i + 1)
+            return self.subkeys[i - 1]
+        if subkey_type == self.KEY_KI3:
+            i = normalize(i + 3)
+            return self.subkeys[i - 1]
+
+        if subkey_type == self.KEY_KL1:
+            if i % 2 != 0:
+                i = normalize((i + 1) // 2)
+                return self.key[i - 1]
+            else:
+                i = normalize((i // 2) + 2)
+                return self.subkeys[i - 1]
+        if subkey_type == self.KEY_KL2:
+            if i % 2 != 0:
+                i = normalize((i + 1) // 2 + 6)
+                return self.subkeys[i - 1]
+            else:
+                i = normalize((i // 2) + 4)
+                return self.key[i - 1]
+
+    def fi(self, x, subkey_ki):
+        """Misty FI function.
+
+        Args:
+            x: 16-bit input value.
+            subkey_ki: 16-bit KI key chunk for FI function.
+
+        Returns: 16-bit output of FI function.
+
+        """
+        ki7 = subkey_ki[0:self.fi_right_size]
+        ki9 = subkey_ki[self.fi_right_size:]
+
+        d9 = x[0:self.fi_left_size]
+        d7 = x[self.fi_left_size:]
+
+        d9 = vector_do(operator.__xor__, self.s9(d9), [0, 0] + d7)
+        d7 = vector_do(operator.__xor__, self.s7(d7), d9[2:self.fi_left_size])
+        d7 = vector_do(operator.__xor__, d7, ki7)
+        d9 = vector_do(operator.__xor__, d9, ki9)
+        d9 = vector_do(operator.__xor__, self.s9(d9), [0, 0] + d7)
+        return d7 + d9
+
+    def key_schedule(self, key):
+        """Generate subkeys according to Misty key schedule algorithm.
+
+        Args:
+            key: List of 128 bits.
+
+        Returns:
+            List of 8 subkeys (each containing list of 16 bits).
+        """
+        key_chunks = split(key, 16)
+        self.key = key_chunks
+
+        subkeys = list()
+        for k in range(len(key_chunks)):
+            if k < 7:
+                subkeys.append(self.fi(key_chunks[k], key_chunks[k + 1]))
+            else:
+                subkeys.append(self.fi(key_chunks[k], key_chunks[0]))
+        self.subkeys = subkeys
+        return subkeys
+
+    def fl(self, x, i):
+        """Misty key injection FL function.
+
+        Args:
+            x: 32-bit input.
+            i: number of round.
+
+        Returns:
+            Resulting 32 bits after key injection.
+
+        """
+        left = x[:self.halfblock_size_fo]
+        right = x[self.halfblock_size_fo:]
+
+        kl1 = self.kindex(self.KEY_KL1, i)
+        kl2 = self.kindex(self.KEY_KL2, i)
+
+        temp = vector_do(operator.__and__, left, kl1)
+        right = vector_do(operator.__xor__, right, temp)
+
+        temp = vector_do(operator.__or__, right, kl2)
+        left = vector_do(operator.__xor__, left, temp)
+        return left + right
+
+    #@groebner_basis
+    def s7(self, x, r=None):
+        """Substitute with Misty S7 SBox.
+
+        Bit ordering is reversed due to Crazy Misty Spec bit ordering.
+        """
+        y = [0] * len(x)
+        if not r:
+            y[6]  = x[6] ^^x[5] &x[3] ^^x[6] &x[3] &x[2] ^^x[5] &x[1] ^^x[6] &x[4] &x[1] ^^x[2] &x[1] ^^x[6] &x[5] &x[0] ^^x[4] &x[0] ^^x[6] &x[1] &x[0] ^^x[3] &x[1] &x[0] ^^1
+            y[5]  = x[6] &x[4] ^^x[6] &x[2] ^^x[3] &x[2] ^^x[5] &x[1] ^^x[4] &x[2] &x[1] ^^x[0] ^^x[6] &x[0] ^^x[3] &x[0] ^^x[4] &x[3] &x[0] ^^x[5] &x[2] &x[0] ^^x[6] &x[1] &x[0] ^^1
+            y[4]  = x[5] &x[4] ^^x[6] &x[4] &x[3] ^^x[2] ^^x[5] &x[2] ^^x[6] &x[5] &x[2] ^^x[6] &x[1] ^^x[6] &x[2] &x[1] ^^x[3] &x[2] &x[1] ^^x[5] &x[0] ^^x[3] &x[0] ^^x[6] &x[3] &x[0] ^^x[2] &x[0] ^^x[4] &x[2] &x[0] 
+            y[3]  = x[6] ^^x[5] ^^x[6] &x[5] &x[4] ^^x[6] &x[3] ^^x[4] &x[2] ^^x[5] &x[2] &x[1] ^^x[4] &x[0] ^^x[5] &x[3] &x[0] ^^x[6] &x[2] &x[0] ^^x[1] &x[0] ^^1
+            y[2]  = x[4] &x[3] ^^x[6] &x[2] ^^x[5] &x[3] &x[2] ^^x[1] ^^x[4] &x[1] ^^x[5] &x[4] &x[1] ^^x[6] &x[3] &x[1] ^^x[5] &x[0] ^^x[5] &x[1] &x[0] ^^x[2] &x[1] &x[0] ^^1
+            y[1]  = x[6] ^^x[5] ^^x[4] ^^x[6] &x[5] &x[4] ^^x[6] &x[3] ^^x[5] &x[4] &x[3] ^^x[5] &x[2] ^^x[6] &x[4] &x[2] ^^x[6] &x[1] ^^x[6] &x[5] &x[1] ^^x[3] &x[1] ^^x[6] &x[0] ^^x[4] &x[1] &x[0] 
+            y[0]  = x[6] &x[5] ^^x[3] ^^x[6] &x[3] ^^x[4] &x[3] &x[2] ^^x[6] &x[1] ^^x[4] &x[1] ^^x[3] &x[1] ^^x[5] &x[3] &x[1] ^^x[5] &x[0] ^^x[5] &x[4] &x[0] ^^x[6] &x[3] &x[0] ^^x[2] &x[0] ^^x[4] &x[1] &x[0] 
+            return y
+        else:
+            # Process variables over Boolean Polynomial Ring correctly.
+            polynomials = [
+            r[6] + x[6] + x[5] * x[3] + x[6] * x[3] * x[2] + x[5] * x[1] + x[6] * x[4] * x[1] + x[2] * x[1] + x[6] * x[5] * x[0] + x[4] * x[0] + x[6] * x[1] * x[0] + x[3] * x[1] * x[0] + 1,
+            r[5] + x[6] * x[4] + x[6] * x[2] + x[3] * x[2] + x[5] * x[1] + x[4] * x[2] * x[1] + x[0] + x[6] * x[0] + x[3] * x[0] + x[4] * x[3] * x[0] + x[5] * x[2] * x[0] + x[6] * x[1] * x[0] + 1,
+            r[4] + x[5] * x[4] + x[6] * x[4] * x[3] + x[2] + x[5] * x[2] + x[6] * x[5] * x[2] + x[6] * x[1] + x[6] * x[2] * x[1] + x[3] * x[2] * x[1] + x[5] * x[0] + x[3] * x[0] + x[6] * x[3] * x[0] + x[2] * x[0] + x[4] * x[2] * x[0],
+            r[3] + x[6] + x[5] + x[6] * x[5] * x[4] + x[6] * x[3] + x[4] * x[2] + x[5] * x[2] * x[1] + x[4] * x[0] + x[5] * x[3] * x[0] + x[6] * x[2] * x[0] + x[1] * x[0] + 1,
+            r[2] + x[4] * x[3] + x[6] * x[2] + x[5] * x[3] * x[2] + x[1] + x[4] * x[1] + x[5] * x[4] * x[1] + x[6] * x[3] * x[1] + x[5] * x[0] + x[5] * x[1] * x[0] + x[2] * x[1] * x[0] + 1,
+            r[1] + x[6] + x[5] + x[4] + x[6] * x[5] * x[4] + x[6] * x[3] + x[5] * x[4] * x[3] + x[5] * x[2] + x[6] * x[4] * x[2] + x[6] * x[1] + x[6] * x[5] * x[1] + x[3] * x[1] + x[6] * x[0] + x[4] * x[1] * x[0],
+            r[0] + x[6] * x[5] + x[3] + x[6] * x[3] + x[4] * x[3] * x[2] + x[6] * x[1] + x[4] * x[1] + x[3] * x[1] + x[5] * x[3] * x[1] + x[5] * x[0] + x[5] * x[4] * x[0] + x[6] * x[3] * x[0] + x[2] * x[0] + x[4] * x[1] * x[0]
+            ]
+            return polynomials
+
+
+    #@groebner_basis
+    def s9(self, x, r=None):
+        """Substitute with Misty S9 SBox. """
+        y = [0] * len(x)
+        if not r:
+            y[8] = x[8] &  x[4] ^^ x[8] &  x[3] ^^ x[7] &  x[3] ^^ x[7] &  x[2] ^^ x[6] &  x[2] ^^ x[6] &  x[1] ^^ x[5] &  x[1] ^^ x[5] &  x[0] ^^ x[4] &  x[0] ^^ 1
+            y[7] = x[8] &  x[6] ^^ x[5] ^^ x[7] &  x[5] ^^ x[6] &  x[5] ^^ x[5] &  x[4] ^^ x[4] &  x[3] ^^ x[8] &  x[2] ^^ x[6] &  x[2] ^^ x[1] ^^ x[8] &  x[0] ^^ x[5] &  x[0] ^^ x[3] &  x[0] ^^ 1
+            y[6] = x[8] &  x[7] ^^ x[7] &  x[5] ^^ x[4] ^^ x[8] &  x[4] ^^ x[6] &  x[4] ^^ x[5] &  x[4] ^^ x[4] &  x[3] ^^ x[8] &  x[2] ^^ x[3] &  x[2] ^^ x[7] &  x[1] ^^ x[5] &  x[1] ^^ x[0]
+            y[5] = x[8] ^^ x[7] &  x[6] ^^ x[6] &  x[4] ^^ x[3] ^^ x[7] &  x[3] ^^ x[5] &  x[3] ^^ x[4] &  x[3] ^^ x[3] &  x[2] ^^ x[7] &  x[1] ^^ x[2] &  x[1] ^^ x[6] &  x[0] ^^ x[4] &  x[0]
+            y[4] = x[7] ^^ x[8] &  x[5] ^^ x[6] &  x[5] ^^ x[8] &  x[3] ^^ x[5] &  x[3] ^^ x[2] ^^ x[6] &  x[2] ^^ x[4] &  x[2] ^^ x[3] &  x[2] ^^ x[2] &  x[1] ^^ x[6] &  x[0] ^^ x[1] &  x[0]
+            y[3] = x[6] ^^ x[8] &  x[5] ^^ x[7] &  x[4] ^^ x[5] &  x[4] ^^ x[7] &  x[2] ^^ x[4] &  x[2] ^^ x[1] ^^ x[5] &  x[1] ^^ x[3] &  x[1] ^^ x[2] &  x[1] ^^ x[8] &  x[0] ^^ x[1] &  x[0]
+            y[2] = x[8] &  x[7] ^^ x[5] ^^ x[7] &  x[4] ^^ x[6] &  x[3] ^^ x[4] &  x[3] ^^ x[6] &  x[1] ^^ x[3] &  x[1] ^^ x[0] ^^ x[8] &  x[0] ^^ x[4] &  x[0] ^^ x[2] &  x[0] ^^ x[1] &  x[0] ^^ 1
+            y[1] = x[7] ^^ x[8] &  x[7] ^^ x[7] &  x[6] ^^ x[6] &  x[5] ^^ x[8] &  x[4] ^^ x[3] ^^ x[7] &  x[2] ^^ x[5] &  x[2] ^^ x[8] &  x[1] ^^ x[4] &  x[1] ^^ x[2] &  x[1] ^^ x[7] &  x[0] ^^ 1
+            y[0] = x[8] ^^ x[8] &  x[7] ^^ x[7] &  x[6] ^^ x[4] ^^ x[8] &  x[3] ^^ x[6] &  x[3] ^^ x[5] &  x[2] ^^ x[3] &  x[2] ^^ x[8] &  x[1] ^^ x[8] &  x[0] ^^ x[5] &  x[0] ^^ x[2] &  x[0] ^^ 1
+            return y
+        else:
+            # Process variables over Boolean Polynomial Ring correctly.
+            polynomials = [
+            r[8] + x[8] * x[4] + x[8] * x[3] + x[7] * x[3] + x[7] * x[2] + x[6] * x[2] + x[6] * x[1] + x[5] * x[1] + x[5] * x[0] + x[4] * x[0] + 1,
+            r[7] + x[8] * x[6] + x[5] + x[7] * x[5] + x[6] * x[5] + x[5] * x[4] + x[4] * x[3] + x[8] * x[2] + x[6] * x[2] + x[1] + x[8] * x[0] + x[5] * x[0] + x[3] * x[0] + 1,
+            r[6] + x[8] * x[7] + x[7] * x[5] + x[4] + x[8] * x[4] + x[6] * x[4] + x[5] * x[4] + x[4] * x[3] + x[8] * x[2] + x[3] * x[2] + x[7] * x[1] + x[5] * x[1] + x[0],
+            r[5] + x[8] + x[7] * x[6] + x[6] * x[4] + x[3] + x[7] * x[3] + x[5] * x[3] + x[4] * x[3] + x[3] * x[2] + x[7] * x[1] + x[2] * x[1] + x[6] * x[0] + x[4] * x[0],
+            r[4] + x[7] + x[8] * x[5] + x[6] * x[5] + x[8] * x[3] + x[5] * x[3] + x[2] + x[6] * x[2] + x[4] * x[2] + x[3] * x[2] + x[2] * x[1] + x[6] * x[0] + x[1] * x[0],
+            r[3] + x[6] + x[8] * x[5] + x[7] * x[4] + x[5] * x[4] + x[7] * x[2] + x[4] * x[2] + x[1] + x[5] * x[1] + x[3] * x[1] + x[2] * x[1] + x[8] * x[0] + x[1] * x[0],
+            r[2] + x[8] * x[7] + x[5] + x[7] * x[4] + x[6] * x[3] + x[4] * x[3] + x[6] * x[1] + x[3] * x[1] + x[0] + x[8] * x[0] + x[4] * x[0] + x[2] * x[0] + x[1] * x[0] + 1,
+            r[1] + x[7] + x[8] * x[7] + x[7] * x[6] + x[6] * x[5] + x[8] * x[4] + x[3] + x[7] * x[2] + x[5] * x[2] + x[8] * x[1] + x[4] * x[1] + x[2] * x[1] + x[7] * x[0] + 1,
+            r[0] + x[8] + x[8] * x[7] + x[7] * x[6] + x[4] + x[8] * x[3] + x[6] * x[3] + x[5] * x[2] + x[3] * x[2] + x[8] * x[1] + x[8] * x[0] + x[5] * x[0] + x[2] * x[0] + 1
+            ]
+            return polynomials
+
+    def fo(self, x, i):
+        """Misty FO function.
+
+        Second level nested Feistel network.
+
+        Args:
+            x: 32-bit input list.
+            i: number of rounds.
+
+        Returns:
+            Resulting bits list.
+        """
+
+
+        left = x[0:self.halfblock_size_fo]
+        right = x[self.halfblock_size_fo:]
+
+        ki1 = self.kindex(self.KEY_KI1, i)
+        ki2 = self.kindex(self.KEY_KI2, i)
+        ki3 = self.kindex(self.KEY_KI3, i)
+
+        ko1 = self.kindex(self.KEY_KO1, i)
+        ko2 = self.kindex(self.KEY_KO2, i)
+        ko3 = self.kindex(self.KEY_KO3, i)
+        ko4 = self.kindex(self.KEY_KO4, i)
+
+        left = vector_do(operator.__xor__, left, ko1)
+        temp = self.fi(left, ki1)
+        left = vector_do(operator.__xor__, temp, right)
+
+        right = vector_do(operator.__xor__, right, ko2)
+        temp = self.fi(right, ki2)
+        right = vector_do(operator.__xor__, left, temp)
+
+        left = vector_do(operator.__xor__, left, ko3)
+        temp = self.fi(left, ki3)
+        left = vector_do(operator.__xor__, temp, right)
+
+        right = vector_do(operator.__xor__, right, ko4)
+
+        return right + left
+
+    def feistel_round(self, data, i):
+        """Misty Feistel network single run.
+
+        It actually performs first 2 rounds (look for Misty specs).
+
+        Args:
+            data: 64-bit input list.
+            i: number of actual round (pay attention to indices according
+                to Misty specification). Rounds are in range 1 <= i <= n + 2,
+                where `n` is total number of rounds
+        Returns:
+            Resulting 64-bit list.
+
+        """
+        left = data[0:self.halfblock_size]
+        right = data[self.halfblock_size:]
+
+        # FL1
+        left = self.fl(left, i)
+        # FL2
+        right = self.fl(right, i + 1)
+
+        # FO1
+        temp = self.fo(left, i)
+        right = vector_do(operator.__xor__, right, temp)
+
+        # FO2
+        temp = self.fo(right, i + 1)
+        left = vector_do(operator.__xor__, temp, left)
+
+        return left + right
+
+    def encipher(self, data, key):
+        """Encipher plaintext with Misty cryptoalgorithm.
+
+        Args:
+            data: 64-bit input list (plaintext).
+            key: 128-bit input list (key).
+
+        Returns:
+            64-bit list (ciphertext).
+
+        """
+        for i in range(1, self.nrounds + 1, 2):
+            data = self.feistel_round(data, i)
+
+        left = data[0:self.halfblock_size]
+        right = data[self.halfblock_size:]
+        # FL n+1
+        left = self.fl(left, self.nrounds + 1)
+        # FL n+2
+        right = self.fl(right, self.nrounds + 2)
+        return right + left
+
+    def selftest(self):
+        """Check Misty test vectors compliance."""
+        plaintext = 0x0123456789ABCDEF
+        key = 0x00112233445566778899AABBCCDDEEFF
+        self.key_schedule(self.get_bits(key, 16))
+        c = self.encipher(self.get_bits(plaintext, 8),
+                          self.get_bits(key, 16))
+        result = self.get_integer(c)
+        expected = 0x8b1da5f56ab3d07c
+        return result == expected
+
+    def _varformatstr(self, name):
+        """Prepare formatting string for variables notation.
+
+        Args:
+            name: Variable identificator string.
+
+        Returns:
+            Variable identificator string appended with format specificators
+            that contains round number and block bit number.
+            Format: R<round number>_<var id>_<bit number>
+
+        """
+        l = str(len(str(self.block_size - 1)))
+        return "R%s_" + name + "_%0" + l + "d"
+
+    def _varstrs(self, name, nbits, round='', start_from=0):
+        """Construct strings with variables names.
+
+        Args:
+            name: variable string identificator.
+            nbits: number of variables set of the same type.
+            round: number of round for which variables are defined. If not
+                specified, no round prefix is prepended to the string.
+
+        Returns:
+            List of strings with variables names.
+
+        """
+        round = str(round)
+        s = self._varformatstr(name)
+        if not round:
+            # Exclude round prefix.
+            s = s[s.find('_') + 1:]
+            var_names = [s % (i) for i in range(start_from, start_from + nbits)]
+        else:
+            var_names = [s % (round, i) for i in range(start_from, start_from + nbits)]
+        if not name == 'K' and not name == 'KS' and not name.startswith('FIKS'):
+            # Include polynomial system prefix.
+            var_names = [self.prefix + var for var in var_names]
+        return var_names
+
+    def vars(self, name, nbits, round='', start_from=0):
+        """Construct variables in predefined Misty ring.
+
+        Refer to `_varstrs()` and `gen_ring()` for details.
+
+        """
+        var_names = self._varstrs(name, nbits, round=round, start_from=start_from)
+        return [self.ring(e) for e in var_names]
+
+    def gen_round_var_names(self, round):
+        """Generate variables names set for given round number."""
+        var_names = list()
+        # FL
+        var_names += self._varstrs('FL_KL1', 16, round)
+        var_names += self._varstrs('FL_KL2', 16, round)
+        var_names += self._varstrs('FL_XOR', 16, round)
+        var_names += self._varstrs('FL', 32, round)
+        # FI
+        for i in range(1, 4):
+            # FI has 3 subrounds in FO function.
+            var_names += self._varstrs('FI' + str(i), 16, round)
+            var_names += self._varstrs('FI' + str(i) + '_S9', 9, round)
+            var_names += self._varstrs('FI' + str(i) + '_S7', 7, round)
+            var_names += self._varstrs('FI' + str(i) + '_SS9', 9, round)
+            var_names += self._varstrs('FI' + str(i) + '_KI2', 16, round)
+        # FO
+        var_names += self._varstrs('FO', 32, round)
+        var_names += self._varstrs('FO_KO1', 16, round)
+        var_names += self._varstrs('FO_KO2', 16, round)
+        var_names += self._varstrs('FO_KO3', 16, round)
+
+
+        return var_names
+
+    def gen_ring(self):
+        """Generate ring for Misty polynomial equations system.
+
+        Construct all variables needed for describing Misty cryptoalgorithm
+        with polynomial equations system and generate the corresponding
+        Boolean Polynomial Ring.
+
+        """
+        var_names = list()
+
+        # Input plaintext.
+        var_names += self._varstrs('IN', 64)
+        # Output ciphertext.
+        var_names += self._varstrs('OUT', 64)
+
+        # Key variables.
+        var_names += self._varstrs('K', 128)
+        # Subkey variables.
+        var_names += self._varstrs('KS', 128)
+
+        if self.equations_key_schedule == True:
+            for i in range(8):
+                var_names += self._varstrs('FIKS' + str(i), 16)
+                var_names += self._varstrs('FIKS' + str(i) + '_S9', 9)
+                var_names += self._varstrs('FIKS' + str(i) + '_S7', 7)
+                var_names += self._varstrs('FIKS' + str(i) + '_SS9', 9)
+                var_names += self._varstrs('FIKS' + str(i) + '_KI2', 16)
+
+        for i in range(1, self.nrounds + 1):
+            var_names += self.gen_round_var_names(i)
+        for i in range(1, self.nrounds + 1):
+            if i % 2 == 1:
+                var_names += self._varstrs('FX', 32, i)
+            else:
+                var_names += self._varstrs('F', 64, i)
+        for i in range(self.nrounds + 1, self.nrounds + 3):
+            # FL
+            var_names += self._varstrs('FL_KL1', 16, i)
+            var_names += self._varstrs('FL_KL2', 16, i)
+            var_names += self._varstrs('FL_XOR', 16, i)
+            var_names += self._varstrs('FL', 32, i)
+
+        self.ring = BooleanPolynomialRing(len(var_names), var_names, order='degrevlex')
+
+
+    def polynomials_fl(self, x, i):
+        """Construct polynomials for Misty FL function."""
+
+        left = x[:self.halfblock_size_fo]
+        right = x[self.halfblock_size_fo:]
+
+        kl1 = self.kindex(self.KEY_KL1, i)
+        kl2 = self.kindex(self.KEY_KL2, i)
+
+        polynomials = list()
+
+        ## Generate variables for given round
+        vars_kl1 = self.vars('FL_KL1', 16, i)
+        vars_kl2 = self.vars('FL_KL2', 16, i)
+        vars_xor = self.vars('FL_XOR', 16, i)
+        vars_out = self.vars('FL', 32, i)
+
+        temp = vector_do(operator.__and__, left, kl1)
+        polynomials.extend(vector_do(operator.__xor__, temp, vars_kl1))
+
+        right = vector_do(operator.__xor__, right, vars_kl1)
+        polynomials.extend(vector_do(operator.__xor__, right, vars_xor))
+
+        # Replace `x or y` operation with equivalent `x * y ^ x + y`.
+        temp = vector_do(operator.__or__, vars_xor, kl2)
+        polynomials.extend(vector_do(operator.__xor__, temp, vars_kl2))
+
+        left = vector_do(operator.__xor__, left, vars_kl2)
+        polynomials.extend(vector_do(operator.__xor__, left, vars_out[0:16]))
+        polynomials.extend(vector_do(operator.__xor__, vars_xor, vars_out[16:32]))
+
+        return flatten(polynomials)
+
+    def polynomials_fi(self, x, subkey_ki, subround, r=''):
+        """Construct polynomials for Misty FI function.
+
+        Args:
+            x: list of 16 input variables.
+            subkey_ki: 16-bit key chunk.
+            subround: number of FI round in FO function (1..3).
+            r: number of actual outer Feistel network enciphering round.
+
+        """
+        ki7 = subkey_ki[0:self.fi_right_size]
+        ki9 = subkey_ki[self.fi_right_size:]
+
+        d9 = x[0:self.fi_left_size]
+        d7 = x[self.fi_left_size:]
+
+        subround = str(subround)
+
+        if subround in ['1', '2', '3']:
+            vars_fi = self.vars('FI' + subround, 16, r)
+        else:
+            vars_fi = self.vars('KS', 16, start_from=int(subround[2]) * 16)
+
+        vars_s9 = self.vars('FI' + subround + '_S9', 9, r)
+        vars_s7 = self.vars('FI' + subround + '_S7', 7, r)
+        vars_ss9 = self.vars('FI' + subround + '_SS9', 9, r)
+        vars_ki2 = self.vars('FI' + subround + '_KI2', 9, r)
+
+        polynomials = list()
+        pad = [self.ring(0)] * 2
+
+        polynomials.extend(self.s9(d9, vars_s9))
+        d9 = vector_do(operator.__xor__, vars_s9, pad + d7) # add to pols
+
+        polynomials.extend(self.s7(d7, vars_s7))
+        d7 = vector_do(operator.__xor__, vars_s7, d9[2:self.fi_left_size]) # add to pols
+        d7 = vector_do(operator.__xor__, d7, ki7)
+
+        d9 = vector_do(operator.__xor__, d9, ki9)
+        polynomials.extend(vector_do(operator.__xor__, d9, vars_ki2))
+
+        polynomials.extend(self.s9(vars_ki2, vars_ss9))
+        d9 = vector_do(operator.__xor__, vars_ss9, pad + d7) # add to pols
+
+        polynomials.extend(vector_do(operator.__xor__, vars_fi[0:7], d7))
+        polynomials.extend(vector_do(operator.__xor__, vars_fi[7:16], d9))
+        return polynomials
+
+    def polynomials_fo(self, x, i):
+        """Construct polynomials for Misty FI function."""
+
+        left = x[0:self.halfblock_size_fo]
+        right = x[self.halfblock_size_fo:]
+
+        ki1 = self.kindex(self.KEY_KI1, i)
+        ki2 = self.kindex(self.KEY_KI2, i)
+        ki3 = self.kindex(self.KEY_KI3, i)
+
+        ko1 = self.kindex(self.KEY_KO1, i)
+        ko2 = self.kindex(self.KEY_KO2, i)
+        ko3 = self.kindex(self.KEY_KO3, i)
+        ko4 = self.kindex(self.KEY_KO4, i)
+
+        vars_fo = self.vars('FO', 32, i)
+        vars_ko1 = self.vars('FO_KO1', 16, i)
+        vars_ko2 = self.vars('FO_KO2', 16, i)
+        vars_ko3 = self.vars('FO_KO3', 16, i)
+        vars_fi1 = self.vars('FI1', 16, i)
+        vars_fi2 = self.vars('FI2', 16, i)
+        vars_fi3 = self.vars('FI3', 16, i)
+
+        polynomials = list()
+
+        left = vector_do(operator.__xor__, left, ko1)
+        polynomials.extend(vector_do(operator.__xor__, left, vars_ko1))
+        polynomials.extend(self.polynomials_fi(vars_ko1, ki1, 1, i))  # FI1 variables introduced.
+        left = vector_do(operator.__xor__, vars_fi1, right)
+
+        right = vector_do(operator.__xor__, right, ko2)
+        polynomials.extend(vector_do(operator.__xor__, right, vars_ko2))
+        polynomials.extend(self.polynomials_fi(vars_ko2, ki2, 2, i))  # FI2 variables introduced.
+        right = vector_do(operator.__xor__, vars_fi2, left)
+
+        left = vector_do(operator.__xor__, left, ko3)
+        polynomials.extend(vector_do(operator.__xor__, left, vars_ko3))
+        polynomials.extend(self.polynomials_fi(vars_ko3, ki3, 3, i))  # FI3 variables introduced.
+        left = vector_do(operator.__xor__, vars_fi3, right)
+
+        right = vector_do(operator.__xor__, right, ko4)
+        polynomials.extend(vector_do(operator.__xor__, right, vars_fo[0:16]))
+        polynomials.extend(vector_do(operator.__xor__, left, vars_fo[16:32]))
+
+        return polynomials
+
+    def polynomials_round(self, data, i):
+        """Construct polynomials for Misty Feistel single run."""
+        left = data[0:self.halfblock_size]
+        right = data[self.halfblock_size:]
+
+        vars_fl1 = self.vars('FL', 32, i)
+        vars_fl2 = self.vars('FL', 32, i + 1)
+        vars_fo1 = self.vars('FO', 32, i)
+        vars_fo2 = self.vars('FO', 32, i + 1)
+        vars_fx = self.vars('FX', 32, i)
+        vars_f = self.vars('F', 64, i + 1)
+
+        polynomials = list()
+
+        polynomials.extend(self.polynomials_fl(left, i))  # FL1 fariables introduced.
+        polynomials.extend(self.polynomials_fl(right, i + 1))  # FL2 fariables introduced.
+
+        polynomials.extend(self.polynomials_fo(vars_fl1, i))  # FO1 variables introduced.
+        right = vector_do(operator.__xor__, vars_fo1, vars_fl2)
+        polynomials.extend(vector_do(operator.__xor__, right, vars_fx))
+
+        polynomials.extend(self.polynomials_fo(vars_fx, i + 1))  # FO2 variables introduced.
+        left = vector_do(operator.__xor__, vars_fo2, vars_fl1)
+        polynomials.extend(vector_do(operator.__xor__, left, vars_f[0:32]))
+        polynomials.extend(vector_do(operator.__xor__, vars_fx, vars_f[32:64]))
+
+        return polynomials
+
+    def polynomials_key_schedule(self):
+        """Construct polynomials for Misty key scheduling."""
+        self.key = split(self.vars('K', 128), 16)
+
+        polynomials = list()
+        for k in range(len(self.key)):
+            subround = 'KS' + str(k)
+            if k < 7:
+                polynomials.extend(self.polynomials_fi(self.key[k], self.key[k + 1], subround))
+            else:
+                polynomials.extend(self.polynomials_fi(self.key[k], self.key[0], subround))
+        self.subkeys = split(self.vars('KS', 128), 16)
+        return polynomials
+
+    def polynomial_system(self):
+        """Construct polynomials system for Misty cipher."""
+        polynomials = list()
+
+        plain = self.vars('IN', 64)
+        if self.equations_key_schedule is True:
+            polynomials.extend(self.polynomials_key_schedule())
+        else:
+            self.key = split(self.vars('K', 128), 16)
+            self.subkeys = split(self.vars('KS', 128), 16)
+
+        polynomials.extend(self.polynomials_round(plain, 1))  # R2_F variables introduced.
+        for i in range(3, self.nrounds + 1, 2):
+            vars_f_prev = self.vars('F', 64, i - 1)
+            polynomials.extend(self.polynomials_round(vars_f_prev, i))
+
+        vars_f = self.vars('F', 64, self.nrounds)
+        vars_fl1 = self.vars('FL', 32, self.nrounds + 1)
+        vars_fl2 = self.vars('FL', 32, self.nrounds + 2)
+        vars_out = self.vars('OUT', 64)
+
+        left = vars_f[0:self.halfblock_size]
+        right = vars_f[self.halfblock_size:]
+
+        polynomials.extend(self.polynomials_fl(left,  self.nrounds + 1))
+        polynomials.extend(self.polynomials_fl(right,  self.nrounds + 2))
+        polynomials.extend(vector_do(operator.__xor__, vars_fl1, vars_out[32:64]))
+        polynomials.extend(vector_do(operator.__xor__, vars_fl2, vars_out[0:32]))
+        return PolynomialSequence(polynomials)
+\end{lstlisting}
+
+
+\append{Solving 2 rounds of \misty\ equations system}
+\label{app:misty-solve}
+
+\begin{lstlisting}
+from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence
+from sage.rings.polynomial.multi_polynomial_sequence import PolynomialSequence_generic
+
+from sage.sat.boolean_polynomials import solve as sat_solve
+
+load('misty.sage')
+
+def inject_vars(F, vars, values):
+    """Inject vars values into polynomial system. """
+    sub_values = dict(zip(vars, values))
+    return F.subs(sub_values)
+
+
+def get_vars(solution, vars):
+    """Obtain variable values from solution dict. """
+    var_names = map(str, vars)
+    solution = dict(zip(map(str, solution.keys()), solution.values()))
+    values = list()
+    for i in var_names:
+        values.append(solution.get(i))
+    return values
+
+
+def join_systems(mqsystems):
+    """Join polynomial systems into one.
+
+    Key variables aren't prefixed since they must be the same through all
+    systems. Joined systems with different keys injected are incorrect.
+
+    """
+    var_names = flatten([system.ring().variable_names() for system in mqsystems])
+    common_vars = list(set(var_names))
+    common_ring = BooleanPolynomialRing(len(common_vars), common_vars, order='degrevlex')
+    new_mqsystem = PolynomialSequence([], common_ring)
+    for s in mqsystems:
+        new_mqsystem.extend(list(s))
+    return new_mqsystem
+
+def solve_single_system():
+    m = Misty(2)
+    plaintext = [1] * 64
+    key = [1] * 128
+    m.key_schedule(key)
+    ciphertext = m.encipher(plaintext, key)
+
+    print 'constructing polynomials...'
+    polynomials = m.polynomial_system()
+    print 'constructing equations system...'
+    F = PolynomialSequence(polynomials)
+    print 'injecting variables...'
+    F = inject_vars(F, m.vars('IN', 64), plaintext)
+    F = inject_vars(F, m.vars('OUT', 64), ciphertext)
+    print 'solving system...'
+    result = sat_solve(F)
+    print 'Done.'
+    key = get_vars(result[0], m.vars('K', 128))
+    print key
+
+
+def solve_joined_systems():
+    nrounds = 2
+    instances = [Misty(nrounds, prefix) for prefix in ['a', 'b']]
+
+    print 'constructing equation systems...'
+    eqsystems = [i.polynomial_system() for i in instances]
+
+    inputs = [[0] * 64, [1] * 64]
+    key = [1] * 128
+    outputs = list()
+    for i, m in enumerate(instances):
+        m.key_schedule(key)
+        outputs.append(m.encipher(inputs[i], key))
+    print 'INPUTS:'
+    for i in inputs:
+        print hex(instances[0].get_integer(i))
+    print 'KEY:'
+    print hex(instances[0].get_integer(key))
+    print 'OUTPUTS:'
+    for i in outputs:
+        print hex(instances[0].get_integer(i))
+
+    print '\ninjecting known variables...'
+    for i, m in enumerate(instances):
+        eqsystems[i] = inject_vars(eqsystems[i], m.vars('IN', 64), inputs[i])
+        eqsystems[i] = inject_vars(eqsystems[i], m.vars('OUT', 64), outputs[i])
+
+    for i in eqsystems:
+        print i.__str__()
+
+    print '\ncombining equation systems...'
+    eqsystem = join_systems(eqsystems)
+    print eqsystem.__str__()
+
+    print '\nsolving equation system...'
+    solution = sat_solve(eqsystem)[0]
+    print solution
+
+\end{lstlisting}
+
+\append{S-boxes for GOST~28147-89 implementation}
+\label{app:gost-sboxes}
+
+\begin{equation}
+    \nonumber
+    \begin{array}{lllllllllllllllll}
+        S_1 =&  \{4, &  10, &  9, &  2, &  13, &  8, &  0, &  14, &  6, &  11, &  1, &  12, &  7, &  15, &  5, &  3 \} \\
+        S_2 =&  \{14, &  11, &  4, &  12, &  6, &  13, &  15, &  10, &  2, &  3, &  8, &  1, &  0, &  7, &  5, &  9 \} \\
+        S_3 =&  \{5, &  8, &  1, &  13, &  10, &  3, &  4, &  2, &  14, &  15, &  12, &  7, &  6, &  0, &  9, &  11 \} \\
+        S_4 =&  \{7, &  13, &  10, &  1, &  0, &  8, &  9, &  15, &  14, &  4, &  6, &  12, &  11, &  2, &  5, &  3 \} \\
+        S_5 =&  \{6, &  12, &  7, &  1, &  5, &  15, &  13, &  8, &  4, &  10, &  9, &  14, &  0, &  3, &  11, &  2 \} \\
+        S_6 =&  \{4, &  11, &  10, &  0, &  7, &  2, &  1, &  13, &  3, &  6, &  8, &  5, &  9, &  12, &  15, &  14 \} \\
+        S_7 =&  \{13, &  11, &  4, &  1, &  3, &  15, &  5, &  9, &  0, &  10, &  14, &  7, &  6, &  8, &  2, &  12 \} \\
+        S_8 =&  \{1, &  15, &  13, &  0, &  5, &  7, &  10, &  4, &  9, &  2, &  3, &  14, &  6, &  11, &  8, &  12 \}
+    \end{array}
+\end{equation}
+
+\append{List of publications}
+
+\begingroup
+\renewcommand{\chapter}[2]{}%
+\begin{thebibliography}{1}
+\renewcommand{\cyrdash}{}
+\providecommand*{\BibEmph}[1]{#1}
+\providecommand*{\BibDash}{\ifdim\lastskip>0pt\unskip\nobreak\hskip.2em\fi\cyrdash\hskip.2em\ignorespaces}
+
+\bibitem{Kiyanchuk:DESSERT:2012}
+\BibEmph{Oliynykov~R.~V., Kiyanchuk~R.~I.} {Perspective Symmetric Block Cipher
+  optimized for Hardware Implementation}~// {6-th International Conference
+  ``Dependable Systems, Services \& Technologies (DESSERT'12)''}. \BibDash
+\newblock 2012.
+
+\bibitem{Kiyanchuk:visnyk:2012}
+\BibEmph{Kiyanchuk~R.~I., Oliynykov~R.~V.} {Linear transformation properties of
+  ZUC cipher}~// \BibEmph{Visnyk}. \BibDash
+\newblock 2012. \BibDash
+\newblock {Mathematical modeling. Information technologies. Computer-aided
+  control systems.}
+
+\bibitem{karazina:zuc}
+\BibEmph{{Kiyanchuk, R. I. and Oliynykov R. V.}} {Linear transformation
+  properties of ZUC cipher}~// {Computer modeling in high-end technologies}~/
+  Kharkiv national university of radio electronics. \BibDash
+\newblock {Kharkiv}, 2012. \BibDash
+\newblock P.~199 -- 202.
+
+\bibitem{Kiyanchuk:2012:Banking}
+\BibEmph{Kiyanchuk~R.~I.} {Differential analysis of S-functions
+  [In~Russian]}~// {Scientific youth researching for European integration}~/
+  Kharkiv university of banking. \BibDash
+\newblock Kharkiv, 2012. \BibDash
+\newblock Electronic resource on CD-ROM.
+
+\bibitem{Kiyanchuk:2012:MMF}
+\BibEmph{Kiyanchuk~R.~I.} {Differential analysis of S-functions
+  [In~Russian]}~// {Radioelectronics and youth in XXI century}~/ Kharkiv
+  national university of radio electronics. \BibDash
+\newblock Kharkiv, 2012. \BibDash
+\newblock {P.}~130 -- 131.
+
+\bibitem{Kiyanchuk:2011:MMF}
+\BibEmph{Kiyanchuk~R.~I.} {Comparative analysis of IDEA-like Block Symmetric
+  Ciphers [In~Ukrainian]}~// {International Conference ``Computer
+  Engineering''}~/ {Kharkiv National University of Radio Electronics}. \BibDash
+\newblock Vol.~5. \BibDash
+\newblock Kharkiv, 2011. \BibDash April. \BibDash
+\newblock {P.}~225 -- 227.
+
+\bibitem{Kiyanchuk:IREF:2011:present}
+\BibEmph{Oliynykov~R.~V., Kiyanchuk~R.~I.} {Perspective Symmetric Block Cipher
+  Optimized for Hardware Implementation [In~Russian]}~// {``Telecommunication
+  Systems and Technologies''}~/ {Kharkiv National University of Radio
+  Electronics}. \BibDash
+\newblock Vol.~II. \BibDash
+\newblock {Kharkiv, Ukraine}, 2011. \BibDash October. \BibDash
+\newblock P.~321 -- 330.
+
+\bibitem{Kiyanchuk:2011:Customs}
+\BibEmph{Oliynykov~R.~V., Kiyanchuk~R.~I.} {Usage of T-functions in Symmetric
+  Cryptographic Transformations [In~Russian]}~// {``Perspectives of Information
+  and transport-customs technologies in customs affairs, external economic
+  industry and organizations management''}~/ {Kharkiv National University of
+  Radio Electronics}. \BibDash
+\newblock Dnipropetrovs'k, 2011. \BibDash December. \BibDash
+\newblock {P.}~213 -- 215. \BibDash
+\newblock Section 2.
+
+\bibitem{Kiyanchuk:2009:rijndael}
+\BibEmph{Dolgov~V.~I., Lysytska~I.~V., Kiyanchuk~R.~I.} {RIJNDAEL -- Is This a
+  New or Well Forgotten Old Solution? [In~Russian]}~// {Computer Science and
+  Technologies}~/ {Kharkiv National University of Radio Electronics}. \BibDash
+\newblock 2009. \BibDash
+\newblock P.~32 -- 35.
+
+\bibitem{Kiyanchuk:2012:kyiv}
+\BibEmph{Oliynykov R. V., Kiyanchuk R. I., Gorbenko I. D.}
+\newblock {Algebraic cryptanalysis of \gost}~ 
+\newblock {XV Internationa scientifically-practical conference 22--25 May, -- 2012}~/ 
+Kharkiv National University of Radio and Electronics. \BibDash Kyiv, 2012. \BibDash {P.}~130 -- 131.
+
+\bibitem{Kiyanchuk:2013:MMF}
+\BibEmph{Kiyanchuk~R.~I.} \newblock {Algebraic cryptanalysis of \gost}~ 
+\newblock {Radioelectronics and youth in XXI century}~/ 
+Kharkiv National University of Radio and Electronics.\BibDash Kharkiv, 2013. \BibDash {P.}~119 -- 120.
+
+\end{thebibliography}
+\endgroup

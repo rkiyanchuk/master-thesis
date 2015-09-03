@@ -1,0 +1,67 @@
+% AUTHOR: Ruslan Kiianchuk <ruslan.kiianchuk@gmail.com>
+
+\Chapter{Conclusions}
+\label{sec:conclusions}
+
+As global shift to portable devices usage spawned demand for very efficient and
+also secure cryptographic primitives, efficient methods for comprehensive
+security evaluation of perspective ciphers are required. Current usage of
+insecure ciphers in various fields of information technologies proves the
+importance of carefull ciphers security evaluation before deploying them into
+real systems.
+
+The accomplished work resulted in development of methods for defining most
+widely used cryptographic primitives with system of non-linear equations. The
+techniques of obtaining equations for bit permutations, modular addition, some
+logical operations and S-boxes should allow to construct full-scale non-linear
+equations systems for most modern symmetric ciphers. Best approaches for solving
+the obtained equations sets are described and allow to solve reduced round
+versions of analyzed ciphers, research algebraic properties of individual
+transformations on low-end computers. Usage of resources with more
+computational power will increase feasibility of full-scale cipher analysis.
+
+As the result of the work software tools for computational algebra that provide
+needed functionality are described and reference implementation for defining
+individual transformations with non-linear equations and constructing full-scale
+system of equations for modern symmetric ciphers is provided.
+
+An algebraic equation system describing \gost\ cipher and obtained using the
+suggested method contains $10432$ polynomials in $4416$ variables. \misty\
+cipher is described with $8448$ equations in $3680$ variables using the same
+method. Number of equations and variables in \gost system is resembling 
+that of PRESENT and \misty equations set is larger than that of AES ($3680$
+variables in \misty\ against $1600$ variables in AES).
+
+Using the described techniques it is possible to solve a $6$ round
+\gost\ polynomial system with $4$ pairs of plaintexts and ciphertexts at the
+moment. Thereby the reduced \gost\ algorithm using $160$ out of $256$ key bits is
+broken by an algebraic attack. Such statistics strengthens the opinion about
+AES vulnerability to algebraic attacks. The
+algebraic attack on \misty\ is performed. The equations system for two cipher
+round could be solved and equivalent keys for a given
+\mbox{plaintext/ciphertext} pair could be found for up to $4$ rounds.
+Solving these systems of equations for additional rounds requires more
+computation power, however finding the solution may be possible on more
+efficient hi-end computers. All computations have been executed on 
+ \verb+Intel Core i5-3570+ CPU at 3.40~GHz with 8~Gb RAM.
+
+The nondetermination of SAT-solver algorithms do not allow to bind
+characteristics of obtained equations set (like its degree, number of equations
+and variables, etc.) to some certain time complexity of solving the given
+system. However these factors may be used to estimate the feasibility of
+solving the system and rationality of allocating processing time for analysis.
+
+Also algebraic analysis in combination with other known cryptanalytic methods
+(linear, differential, integral, etc.) proved to be efficient enough for
+security evaluation of a cipher~\cite{Albrecht2010}. Considering this practice
+algebraic analysis may increase the significance of investigating baby-ciphers
+that are shrinked versions of original cryptoalgorithms, so such approach is a
+subject for future researches.
+
+\osh{
+For labour protection the employee working conditions are analysed for their
+compliance with normative documents on safety engineering and sanitaion. 
+Harmful and dangerous production factors are retrieved and evaluated using the
+built ``Human--Machine--Environment'' interaction system. Corresponding safety
+measures are developed in order to provide favourable working conditions.
+}

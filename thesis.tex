@@ -1,0 +1,53 @@
+% AUTHOR: Ruslan Kiianchuk <ruslan.kiianchuk@gmail.com>
+
+\documentclass{dstu3008/dstu3008}
+% For printing use hardcopy option:
+%\documentclass[hardcopy]{dstu3008/dstu3008}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,decorations.pathmorphing,backgrounds,positioning,fit,decorations.pathreplacing}
+
+% Condition whether Occupational Safety and Health (OSH) chapter is included.
+\newif\ifosh
+\oshfalse
+
+% To include OSH chapter:
+% \oshtrue
+\ifosh
+    \newcommand{\osh}[1]{#1}
+\else
+    \newcommand{\osh}[1]{}
+\fi
+
+\newcommand{\misty}{\mbox{MISTY1}}
+\newcommand{\gost}{\mbox{GOST~28147-89}}
+
+\hypersetup{
+    pdfauthor = {Ruslan I. Kiyanchuk},
+    pdftitle = {Algebraic analysis of symmetric block ciphers},
+ }
+
+\title{Cryptographic properties analysis of perspective symmetric transformations}
+\author{Ruslan I. Kiyanchuk}
+
+
+\begin{document}
+
+\input{title}
+\setcounter{page}{4}
+
+\input{abstracts}
+\tableofcontents
+\input{abbreviations}
+%
+\input{introduction}
+\input{symmetric_ciphers}
+\input{algebraic_analysis}
+\input{implementation}
+\osh{\input{labour}}
+\input{conclusions}
+
+\bibliography{references}
+\input{appendix}
+
+\end{document}

@@ -1,0 +1,118 @@
+\RequirePackage[T2A]{fontenc}
+\RequirePackage[utf8]{inputenc}
+
+\RequirePackage[english, russian, ukrainian]{babel}
+\addto\captionsukrainian{\renewcommand{\abstractname}{\MakeUppercase{Реферат}}}
+\addto\captionsukrainian{\renewcommand{\contentsname}{\MakeUppercase{Зміст}}}
+\addto\captionsukrainian{\renewcommand{\appendixname}{\MakeUppercase{Додатки}}}
+\addto\captionsukrainian{\renewcommand{\refname}{\MakeUppercase{Перелік посилань}}}
+\addto\captionsukrainian{\renewcommand{\bibname}{\MakeUppercase{Перелік посилань}}}
+\addto\captionsukrainian{\renewcommand{\figurename}{Рисунок}}
+\addto\captionsukrainian{\renewcommand{\tablename}{Таблиця}}
+\addto\captionsukrainian{\renewcommand{\lstlistingname}{Лістинг}}
+
+\addto\captionsrussian{\renewcommand{\abstractname}{Реферат}}
+\addto\captionsrussian{\renewcommand{\contentsname}{Содержание}}
+\addto\captionsrussian{\renewcommand{\appendixname}{Приложения}}
+\addto\captionsrussian{\renewcommand{\refname}{Список литературы}}
+\addto\captionsrussian{\renewcommand{\bibname}{Список литературы}}
+\addto\captionsrussian{\renewcommand{\figurename}{Рисунок}}
+\addto\captionsrussian{\renewcommand{\tablename}{Таблица}}
+
+\deftranslation[to=russian]{Theorem}{Теорема}
+\deftranslation[to=russian]{Proof}{Доказательство}
+\deftranslation[to=russian]{Definition}{Определение}
+\deftranslation[to=russian]{Corollary}{Следствие}
+\deftranslation[to=russian]{Example}{Пример}
+
+\deftranslation[to=ukrainian]{Theorem}{Теорема}
+\deftranslation[to=ukrainian]{Proof}{Доведення}
+\deftranslation[to=ukrainian]{Definition}{Визначення}
+\deftranslation[to=ukrainian]{Corollary}{Наслідок}
+\deftranslation[to=ukrainian]{Example}{Приклад}
+
+\usetheme{Madrid}
+
+\RequirePackage{graphicx}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{blocks}[rounded][shadow=true] 
+\setbeamertemplate{items}[circle] 
+\setbeamertemplate{sections/subsections in toc}[square]
+\setbeamercovered{transparent}
+\setbeamersize{text margin left=10mm, text margin right=10mm}
+\setbeamercolor{normal text}{bg=gray!12}
+
+\usecolortheme[RGB={35, 110, 175}]{structure}
+\usefonttheme{professionalfonts}
+
+\newcommand{\showcontents}{
+\begin{frame}{\contentsname}
+    \addtocounter{framenumber}{-1} 
+    \tableofcontents
+\end{frame}
+}
+
+\newcommand{\overviewsection}{
+    \AtBeginSection[] { 
+        \begin{frame}{\contentsname} 
+            \addtocounter{framenumber}{-1} 
+            \tableofcontents[currentsection] 
+        \end{frame} 
+    }
+} 
+
+\newcommand{\overviewsubsection}{
+    \AtBeginSubsection[] { 
+        \begin{frame}{\contentsname} 
+            \addtocounter{framenumber}{-1} 
+            \tableofcontents[currentsubsection] 
+        \end{frame} 
+    } 
+}
+
+\hypersetup{
+    unicode=true
+}
+
+% LISTINGS FORMAT
+% ---------------
+\RequirePackage{listingsutf8}
+\RequirePackage{caption}
+\RequirePackage{xcolor}
+% Caption customizations for code listings
+\DeclareCaptionFont{white}{\color{black}}
+\DeclareCaptionFormat{listing}{{\parbox{\textwidth}{\hspace{5ex}\normalsize\normalfont #1#2#3}}}
+\captionsetup[lstlisting]{
+    format=listing,
+    singlelinecheck=false,
+}
+
+\lstdefinelanguage{Sage}[]{Python}{morekeywords={True,False,sage,with}, sensitive=true}
+
+% listings package customizations
+\lstset{
+    language=Sage,
+    basicstyle=\footnotesize\ttfamily\singlespacing, 
+    extendedchars=false,
+    inputencoding=utf8,  % listings file encoding
+    keepspaces=true,  % need to correctly process spaces in cyrillic files
+    keywordstyle=\textbf,
+    xleftmargin=13pt,
+    framexleftmargin=10pt,
+    framexrightmargin=3pt,
+    framexbottommargin=4pt,
+    frame=none,  % adds a frame around the code
+    captionpos=t,  % place position at top
+    belowcaptionskip=0pt,
+    tabsize=4,	% sets default tabsize to 4 spaces
+    showspaces=false,  % show spaces adding particular underscores
+    showstringspaces=false,  % underline spaces within strings
+    showtabs=false,  % show tabs within strings adding particular underscores
+    breaklines=true,  % sets automatic line breaking
+    numbers=none,  % where to put the line-numbers
+    numberstyle=\scriptsize,  % the size of the fonts that are used for the line-numbers
+    stepnumber=1,  % the step between two line-numbers. If it's 1 each line will be numbered
+    numbersep=15pt  % how far the line-numbers are from the code
+}
+

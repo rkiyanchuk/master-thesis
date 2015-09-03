@@ -1,0 +1,114 @@
+%&latex
+% Copyright 2011 Zoresvit (c) <zoresvit@gmail.com>
+% 
+% 
+%/
+
+\begin{tikzpicture}
+    \tikzstyle{func} = [node distance=7mm, circle, draw=blue!40, fill=blue!20, thick, minimum size = 8mm]
+    \tikzstyle{elem} = [circle, draw=green!40, fill=green!20, thick, minimum size = 8mm]
+    \tikzstyle{bound} = [node distance=1em]
+    \tikzstyle{backfill} = [fill=blue!10, rounded corners]
+    \tikzstyle{linkbelow} = [bend right, looseness=0.7]
+    \tikzstyle{linkabove} = [bend left, looseness=1.2]
+    \tikzstyle{linklabel} = [circle, fill=cyan!10, minimum size=5mm, inner sep=0, draw, above, sloped]
+
+    \node (H1) [node distance=3ex] {\Large $H^1$};
+    \node[func] (H11) [below=of H1]  {$H^1_1$};
+    \node[func] (H12) [below=of H11] {$H^1_2$};
+    \node[func] (H13) [below=of H12] {$H^1_3$};
+    \node[bound] (H1bound) [left=of H1] {};
+
+    \node (M1) [node distance=0.7\textwidth, right=of H1]  {\Large $M^1$};
+    \node[func] (M11) [below=of M1]  {$M^1_1$};
+    \node[func] (M12) [below=of M11] {$M^1_2$};
+    \node[func] (M13) [below=of M12] {$M^1_3$};
+    \node[bound] (M1bound) [right=of M1] {};
+
+    \node (H2) [node distance=3ex, below=of H13] {\Large $H^2$};
+    \node[func] (H21) [below=of H2]  {$H^2_1$};
+    \node[func] (H22) [below=of H21] {$H^2_2$}; 
+    \node[func] (H23) [below=of H22] {$H^2_3$}; 
+    \node[bound] (H2bound) [left=of H2] {};
+
+    \node (M2) [node distance=3ex, below=of M13]  {\Large $M^2$};
+    \node[func] (M21) [below=of M2]  {$M^2_1$};
+    \node[func] (M22) [below=of M21] {$M^2_2$};
+    \node[func] (M23) [below=of M22] {$M^2_3$};
+    \node[bound] (M2bound) [right=of M2] {};
+
+    \node (H3) [node distance=3ex, below=of H23] {\Large $H^3$};
+    \node[func] (H31) [below=of H3]  {$H^2_1$};
+    \node[func] (H32) [below=of H31] {$H^2_2$}; 
+    \node[func] (H33) [below=of H32] {$H^2_3$}; 
+    \node[bound] (H3bound) [left=of H3] {};
+
+    \node (M3) [node distance=3ex, below=of M23]  {\Large $M^3$};
+    \node[func] (M31) [below=of M3]  {$M^2_1$};
+    \node[func] (M32) [below=of M31] {$M^2_2$};
+    \node[func] (M33) [below=of M32] {$M^2_3$};
+    \node[bound] (M3bound) [right=of M3] {};
+
+    \node[elem] (Env) [node distance=0.23\textwidth, minimum size=40mm, right=of H1] {Environment};
+    \node[elem] (Prod) [node distance=0.25\textwidth, minimum size=40mm, right=of H32] {Product};
+
+
+    \foreach \H / \M in {H11/M11, H11/M21, H11/M31, H21/M11, H21/M21, H21/M31, H31/M11, H31/M21, H31/M31}{
+    \draw (\H) to [->, linkabove] node[linklabel]{1} (\M);
+    }
+
+    \foreach \M / \Prod in {M11/Prod, M21/Prod, M31/Prod}{
+    \draw (\M) to [->, linkbelow] node[linklabel]{2} (\Prod) ;
+    }
+
+    \foreach \H / \Prod in {H11/Prod, H21/Prod, H31/Prod}{
+    \draw (\H) to [<->, linkabove] node[linklabel]{3} (\Prod);
+    }
+
+    \foreach \H / \Env in {H12/Env, H22/Env, H32/Env}{
+    \draw (\H) to [->, linkbelow] node[linklabel]{4} (\Env);
+    }
+
+    \foreach \Env / \H in {Env/H13, Env/H23, Env/H33}{
+    \draw (\H) to [<-, linkbelow] node[linklabel]{5} (\Env);
+    }
+
+    \foreach \Prod / \H in {Prod/H13, Prod/H23, Prod/H33}{
+    \draw (\Prod) to [->, linkbelow] node[linklabel]{6} (\H);
+    }
+
+    \foreach \M / \Env in {M13/Env, M23/Env, M33/Env}{
+    \draw (\M) to [->, linkabove] node[linklabel]{7} (\Env);
+    }
+
+    \foreach \Hact / \Hpsy in {H11/H13, H21/H23, H31/H33}{
+    \draw (\Hact) to [->, linkabove] node[linklabel]{8} (\Hpsy);
+    }
+
+    \foreach \Hpsy / \Hbio in {H13/H12, H23/H22, H33/H32}{
+    \draw (\Hpsy) to [->, linkabove] node[linklabel]{9} (\Hbio);
+    }
+
+    \foreach \H / \M in {H11/M13, H21/M23, H31/M33}{
+    \draw (\H) to [->, linkabove] node[linklabel]{10} (\M);
+    }
+
+    \foreach \Env / \M in {Env/M12, Env/M22, Env/M32}{
+    \draw (\Env) to [->, linkbelow] node[linklabel]{11} (\M);
+    }
+
+    \draw (H13) to [<->, linkabove] node[linklabel]{12} (H23);
+    \draw (H13) to [<->, linkabove] node[linklabel]{12} (H33);
+    \draw (M13) to [<->, linkbelow] node[linklabel]{13} (M23);
+    \draw (M13) to [<->, linkbelow] node[linklabel]{13} (M33);
+
+    \begin{pgfonlayer}{background}
+        \node [backfill, fit= (H1) (H11) (H12) (H13) (H1bound)] {};
+        \node [backfill, fit= (M1) (M11) (M12) (M13) (M1bound)] {};
+        \node [backfill, fit= (H2) (H21) (H22) (H23) (H2bound)] {};
+        \node [backfill, fit= (M2) (M21) (M22) (M23) (M2bound)] {};
+        \node [backfill, fit= (H3) (H31) (H32) (H33) (H3bound)] {};
+        \node [backfill, fit= (M3) (M31) (M32) (M33) (M3bound)] {};
+    \end{pgfonlayer}
+\end{tikzpicture}
+
