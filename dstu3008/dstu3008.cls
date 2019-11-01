@@ -26,8 +26,6 @@ Scientific and Technical Reports.]
 % ==============================================
 
 \RequirePackage{cmap}  % make PDF searchable and copyable.
-\RequirePackage[T2A]{fontenc}
-\RequirePackage[utf8]{inputenc}
 
 % Additional useful packages for content formatting.
 \RequirePackage{multirow}
@@ -51,8 +49,9 @@ Scientific and Technical Reports.]
 % Multilanguage support
 % =====================
 
+\RequirePackage{fontspec}
+\setmainfont{CMU Serif}
 \RequirePackage[russian, ukrainian, english]{babel}
-
 
 \addto\captionsenglish{\renewcommand{\abstractname}{\texorpdfstring{\MakeUppercase{Abstract}}{}}}
 \addto\captionsenglish{\renewcommand{\contentsname}{\texorpdfstring{\MakeUppercase{Contents}}{}}}
@@ -80,21 +79,6 @@ Scientific and Technical Reports.]
 \addto\captionsukrainian{\renewcommand{\appendixname}{\texorpdfstring{\MakeUppercase{Додаток}}{}}}
 \addto\captionsukrainian{\renewcommand{\appendixpagename}{\texorpdfstring{\MakeUppercase{Додатки}}{}}}
 \addto\captionsukrainian{\renewcommand{\appendixtocname}{\texorpdfstring{\MakeUppercase{Додаток}}{}}}
-
-\addto\captionsrussian{\renewcommand{\abstractname}{Реферат}}
-\addto\captionsrussian{\renewcommand{\contentsname}{Содержание}}
-\addto\captionsrussian{\renewcommand{\refname}{Список литературы}}
-\addto\captionsrussian{\renewcommand{\bibname}{Список литературы}}
-\addto\captionsrussian{\renewcommand{\figurename}{Рисунок}}
-\addto\captionsrussian{\renewcommand{\tablename}{Таблица}}
-\addto\captionsrussian{\renewcommand{\lstlistingname}{Листинг}}
-\addto\captionsrussian{\renewcommand{\listalgorithmcfname}{Список алгоритмов}}
-\addto\captionsrussian{\renewcommand{\algorithmcfname}{\normalfont Алгоритм}}
-\addto\captionsrussian{\renewcommand{\nomname}{\texorpdfstring{\MakeUppercase{Список сокращений}}}{}}
-\addto\captionsrussian{\renewcommand{\lstlistingname}{Листинг}}
-\addto\captionsrussian{\renewcommand{\appendixname}{\texorpdfstring{\MakeUppercase{Приложение}}{}}}
-\addto\captionsrussian{\renewcommand{\appendixpagename}{\texorpdfstring{\MakeUppercase{Приложения}}{}}}
-\addto\captionsrussian{\renewcommand{\appendixtocname}{\texorpdfstring{\MakeUppercase{Приложение}}{}}}
 
 
 % DSTU 3008-95 compliant style setup
