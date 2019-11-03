@@ -43,7 +43,7 @@ script~\cite{anf2cnf}.
 The \verb+Gost+ class implements \gost\ cryptographic algorithm and its
 multivariate quadratic equation system generator. The implementation is not
 efficient since it treats every bit as a boolean polynomial ring element, so it
-is useful for researching purposes only. 
+is useful for researching purposes only.
 
 One can customize \gost\ parameters (like input block size, number of rounds, key
 addition mode and subkeys ordering) to get small scale cipher. A cipher instance
@@ -68,7 +68,7 @@ is described in section~\ref{seq:key-add-eqn}. In SAGE implementation left digit
 identify round number and right digits specify the number of bit defined by the
 variable. For instance, variable \verb+K0325+ defines 25-th bit of a subkey for round 3. It is
 worth noting that for small block sizes the cyclic shift value is
-proportionally decreased from 11 bits to 
+proportionally decreased from 11 bits to
 $\text{ceil}(\text{block\_length} / 3)$,
 where $\text{ceil}(x)$ stands for the smallest integer not less than $x$. The
 minimum block size is 8 bits since the cipher becomes degenerated with smaller
@@ -93,10 +93,10 @@ Polynomial Sequence with 10432 Polynomials in 4416 Variables
 \subsection{\misty\ implementation}
 
 The \verb+Misty+ class implements \misty\ cryptographic algorithm and its
-multivariate equations system generator. Its interface is similar to that one of 
+multivariate equations system generator. Its interface is similar to that one of
 \gost. The implementation is not
 efficient since it treats every bit as a boolean polynomial ring element, so it
-is useful for researching purposes only. 
+is useful for researching purposes only.
 
 A required parameter is the number of rounds for the cipher which should be
 multiple of $4$ according to the specification. An optional argument is a prefix
@@ -106,7 +106,7 @@ is used when combining several systems.
 An instance of \misty\ polynomial system generator may be created as shown in
 listing~\ref{lst:spawn_misty}.
 \begin{lstlisting}[label=lst:spawn_misty, caption=Creating MISTY1 instance]
-sage: m = Misty(8)         
+sage: m = Misty(8)
 sage: m.polynomial_system()
 Polynomial Sequence with 8448 Polynomials in 3680 Variables
 \end{lstlisting}
@@ -117,8 +117,8 @@ equations the Gr\"obner basis should be computed as show on
 listing~\ref{lst:misty_groebner}).
 
 \begin{lstlisting}[label=lst:misty_groebner, caption=Misty Gr\"obner basis]
-     @groebner_basis                                                             
-     def s7(self, x, r=None):                                                    
+     @groebner_basis
+     def s7(self, x, r=None):
          y = [0] * len(x)
          ...
 \end{lstlisting}
@@ -139,14 +139,14 @@ a standard \verb+PolynomialSequence_generic+ class and is shown in
 listing~\ref{lst:var-inject}.
 
 \begin{lstlisting}[label=lst:var-inject, caption=Injecting variable values into equation system]
-sage: gost = Gost(block_size=64, rounds=5, key_add='mod', key_order='frw')             
-sage: plaintext = gost.random_block()                                                  
-sage: key = gost.random_key()                                                          
-sage: ciphertext = gost.encrypt(plaintext, key)                                        
-sage: f = gost.polynomial_system()                                                     
-sage: print f                                                                        
+sage: gost = Gost(block_size=64, rounds=5, key_add='mod', key_order='frw')
+sage: plaintext = gost.random_block()
+sage: key = gost.random_key()
+sage: ciphertext = gost.encrypt(plaintext, key)
+sage: f = gost.polynomial_system()
+sage: print f
 Polynomial Sequence with 1630 Polynomials in 864 Variables
-sage: f2 = f.inject(gost.gen_vars(gost.var_names['block'], 0), plaintext)   
+sage: f2 = f.inject(gost.gen_vars(gost.var_names['block'], 0), plaintext)
 sage: f2 = f2.inject(gost.gen_vars(gost.var_names['block'], 5), ciphertext)
 sage: print f2
 Polynomial Sequence with 1630 Polynomials in 736 Variables
@@ -165,16 +165,16 @@ shown in listing~\ref{lst:combine}.
 \begin{lstlisting}[label=lst:combine, caption=Combining several equation systems]
 sage: gost1 = Gost(block_size=64, rounds=3, key_add='mod', key_order='frw', prefix='a')
 sage: gost2 = Gost(block_size=64, rounds=3, key_add='mod', key_order='frw', prefix='b')
-sage: plaintext1 = gost1.random_block()                                                
-sage: plaintext2 = gost1.random_block()                                                
-sage: key = gost1.random_key()                                                         
-sage: ciphertext1 = gost1.encrypt(plaintext1, key)                                     
-sage: ciphertext2 = gost2.encrypt(plaintext2, key)                                     
-sage: f1 = gost1.polynomial_system()                                                   
+sage: plaintext1 = gost1.random_block()
+sage: plaintext2 = gost1.random_block()
+sage: key = gost1.random_key()
+sage: ciphertext1 = gost1.encrypt(plaintext1, key)
+sage: ciphertext2 = gost2.encrypt(plaintext2, key)
+sage: f1 = gost1.polynomial_system()
 sage: f2 = gost2.polynomial_system()
-sage: f1 = f1.inject(gost1.gen_vars(gost1.var_names['block'], 0), plaintext1)          
+sage: f1 = f1.inject(gost1.gen_vars(gost1.var_names['block'], 0), plaintext1)
 sage: f1 = f1.inject(gost1.gen_vars(gost1.var_names['block'], 5), ciphertext1)
-sage: f2 = f2.inject(gost2.gen_vars(gost2.var_names['block'], 0), plaintext2) 
+sage: f2 = f2.inject(gost2.gen_vars(gost2.var_names['block'], 0), plaintext2)
 sage: f2 = f2.inject(gost2.gen_vars(gost2.var_names['block'], 5), ciphertext2)
 sage: f = join_systems([f1, f2], [gost1, gost2])
 sage: print f1
@@ -183,7 +183,7 @@ sage: print f2
 Polynomial Sequence with 978 Polynomials in 416 Variables
 sage: f1 == f2
 False
-sage: f = join_systems([f1, f2], [gost1, gost2])                                               
+sage: f = join_systems([f1, f2], [gost1, gost2])
 sage: print f
 Polynomial Sequence with 1956 Polynomials in 736 Variables
 \end{lstlisting}
@@ -191,7 +191,7 @@ Polynomial Sequence with 1956 Polynomials in 736 Variables
 
 All functionality for solving the \gost\ and \misty\  polynomial systems is now
 implemented.  Two approaches are used for solving equation systems: using
-reduced Gr\"obner basis and using SAT solver. 
+reduced Gr\"obner basis and using SAT solver.
 
 In listing~\ref{lst:solving-groebner} computing the reduced
 Gr\"obner basis for polynomial system is demonstrated. Since all equations in the resulting list
@@ -224,7 +224,7 @@ sage: s, t = solver(f)
 equation system on regular laptop with 2~GHz processor in minutes
 (listing~\ref{lst:solving-sat}). Some code is omitted for clarity and is
 indicated with dots. Full source code for solving 6 rounds polynomial system is
-presented in appendix~\ref{app:solving-sat}. 
+presented in appendix~\ref{app:solving-sat}.
 \begin{lstlisting}[label=lst:solving-sat, caption=Solving 6 round GOST system using SAT solver]
 ...
 sage: f = join_systems(mqsystems, gosts)
@@ -233,9 +233,9 @@ sage: print time.ctime(); s, t = solver(f); print time.ctime();
 Sat May 12 22:13:00 2012
 Sat May 12 22:13:41 2012
 ...
-sage: print key == recovered_key                                                                             
+sage: print key == recovered_key
 True
-sage: print gosts[0].encrypt(inputs[0],  key) == gosts[0].encrypt(inputs[0], recovered_key) == outputs[0]    
+sage: print gosts[0].encrypt(inputs[0],  key) == gosts[0].encrypt(inputs[0], recovered_key) == outputs[0]
 True
 \end{lstlisting}
 

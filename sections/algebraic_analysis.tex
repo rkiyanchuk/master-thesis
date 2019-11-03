@@ -10,9 +10,9 @@ algorithms~\cite{Albrecht2010}. It implies modeling a cryptographic algorithm
 by a set of algebraic equations that form multivariate polynomial equations
 system over finite field. The lower degree such system has the easier it is to
 solve, so it is a rule of thumb in algebraic analysis to construct algebraic
-systems that contain only quadratic multivariate 
+systems that contain only quadratic multivariate
 (MQ\footnote{It also became a widespread practice to denote the problem of
-solving multivariate quadratic equation systems as MQ for short.}) 
+solving multivariate quadratic equation systems as MQ for short.})
 equations.
 
 The essence of algebraic cryptanalysis is an assumption made by Claude Shannon
@@ -31,9 +31,9 @@ encryption key in $2^{14.77}$ times faster than a brute force search.
 An Advanced Encryption Standard (AES) that is also widely used outside of the
 USA is potentially vulnerable to XSL attack (a type of algebraic cryptanalysis).
 The attack is claimed to significantly weaken the cipher. Even though the
-practical applicability of the attack hasn't yet been proven, the algebraic 
+practical applicability of the attack hasn't yet been proven, the algebraic
 structure of AES that is efficiently described with algebraic equations system
-may be compliant to such analysis as mentioned in~\cite{ferguson2003practical}: 
+may be compliant to such analysis as mentioned in~\cite{ferguson2003practical}:
 
 ``We have one criticism of AES: we don't quite trust the security. What concerns
 us the most about AES is its simple algebraic structure. No other block cipher
@@ -45,7 +45,7 @@ Given an equations system that completely describes the cryptographic algorithm
 one gets a powerful tool for researching its hidden properties. However such
 systems are hard to solve for full scale ciphers. Complexity of polynomial
 systems is usually described by the number of equations, their degree and number
-of variables they have~\cite{bard2009algebraic}. 
+of variables they have~\cite{bard2009algebraic}.
 
 It is shown in~\cite{Courtois:MQ-NPhard} that solving multivariate quadratic
 equations systems over $GF(2)$ (MQ) and finding satisfying solutions for boolean
@@ -158,18 +158,18 @@ defined similarly.
 \label{seq:key-add-eqn}
 
 During the Ukrainian national public cryptographic competition the following
-method for defining modular addition with equations system has been proposed 
+method for defining modular addition with equations system has been proposed
 by the author of \textit{Labyrinth} block cipher.
 
-Modular addition $R = X + Y$ of two $n$-bit numbers is defined as 
+Modular addition $R = X + Y$ of two $n$-bit numbers is defined as
 \begin{equation}
 \label{eqn:add}
-X = (x_0, \hdots, x_{n-1}), \; 
+X = (x_0, \hdots, x_{n-1}), \;
 Y = (y_0, \hdots, y_{n-1}), \;
 R = (r_0, \hdots, r_{n-1}),
 \end{equation}
 
-where $i$ --- is a bit number, so $x_i$ represents $i$-th bit of number $X$. 
+where $i$ --- is a bit number, so $x_i$ represents $i$-th bit of number $X$.
 Then the addition on a bit level is defined as follows:
 \begin{equation}
 \label{eqn:trivial-mod-add}
@@ -182,7 +182,7 @@ where $c_i$ is a carry bit variable and is defined by \eqref{eqn:carry-bit}.
 c_i = r_{i+1} \oplus x_{i+1} \oplus y_{i+1} \enspace.
 \end{equation}
 The goal is to get null space equations for every addition bit without
-explicitly using the carry variable. It turns out that for addition bits 
+explicitly using the carry variable. It turns out that for addition bits
 $0 < i < (n - 1)$ three implicit equations may be defined:
 \begin{equation}
 \label{eqn:add-with-carry}
@@ -217,7 +217,7 @@ crucial increase on system solving performance.
 An arbitrary S-box is fully defined by equations of degree 2 that can be
 obtained by finding null space equations as described in~\cite{kleiman:xsl}.
 
-Consider the S-box $(7, 6, 0, 4, 2, 5, 1, 3)$ for example. To find 
+Consider the S-box $(7, 6, 0, 4, 2, 5, 1, 3)$ for example. To find
 corresponding null space equations the following matrix $8 \times 22$ is
 constructed.  Each row contains the values of all possible $22$ monomials for
 each of $8$ possible inputs for variables $\{x_0, x_1, x_2, x_3\}$.
@@ -277,10 +277,10 @@ the matrix.
         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & x_2 y_2+ x_1+ y_1+ 1                        \\
         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & y_0 y_1+ x_0+ x_2+ y_0+ y_1+ y_2            \\
         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & y_0 y_2+ x_1+ x_2+ y_0+ y_1+ 1              \\
-        0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & y_1 y_2+ x_2+ y_0                            
+        0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & y_1 y_2+ x_2+ y_0
     \end{array} \right)
 \end{equation}
-This yields to $14$ equations that fully describe the S-box transformations.  
+This yields to $14$ equations that fully describe the S-box transformations.
 
 \subsection{Feistel network}
 
@@ -288,7 +288,7 @@ Using the described methods of constructing algebraic equations for widely used
 cryptographic transformations it is straightforward to define generic Feistel
 network with polynomial equations system.
 
-Consider a Feistel network on figure~\ref{fig:eq_feistel}. 
+Consider a Feistel network on figure~\ref{fig:eq_feistel}.
 \begin{figure}[htbp]
 	\centering
     \input{images/feistel}
@@ -359,14 +359,14 @@ more efficient than SAT solvers in algebraic attack on
 Bivium~\cite{springerlink:10.1007/s11786-009-0016-7}.
 
 Even though in most cases Gr\"obner basis method is not efficient enough for
-attacking full-scale ciphers it is useful for exhausting more linearly 
+attacking full-scale ciphers it is useful for exhausting more linearly
 independent equations by applying it to some transformations (like S-boxes).
 
 \subsection{SAT solvers}
 
 Another approach to solving MQ problem is SAT\footnote{SAT is an abbreviation
 denoting boolean satisfiability problem.} solvers that are used for
-determining a set of variables that would satisfy a given boolean formula. 
+determining a set of variables that would satisfy a given boolean formula.
 
 An efficient method of converting equation systems from the algebraic normal
 form (ANF) to the conjunctive normal form (CNF) was proposed
@@ -376,7 +376,7 @@ memory and make it possible to solve problems infeasible for Gr\"obner basis
 algorithms.
 
 SAT solvers gained lots of attention lately since the problem of finding
-solutions satisfying a given system of boolean equations is \mbox{NP-complete} 
+solutions satisfying a given system of boolean equations is \mbox{NP-complete}
 so developing a SAT solving algorithm running in polynomial time would help to
 experimentally show equality of P and NP. So proving (or disapproving) the
 equivalence of these two complexity classes would affect not only asymmetric
@@ -412,13 +412,13 @@ transformations to make predictions for cipher security.
 Officially adopted in 1989 the GOST~28147 cipher has been developed in
 former USSR and is now the encryption standard in most CIS countries.
 For more than 20 years of cryptanalysis no efficient attack that would
-significantly reduce the cipher security had been found. 
+significantly reduce the cipher security had been found.
 
 GOST~28147-89 is a symmetric block cipher with a key length of 256 bits. It's
 represented by a Feistel network of 32 rounds. The round function consists of
 key addition modulo $2^{32}$, substitution layer represented by eight 4-bit
-S-boxes, and a cyclic left shift by 11 bits (figure~\ref{fig:gost-round-func}). 
-S-boxes are not defined in the 
+S-boxes, and a cyclic left shift by 11 bits (figure~\ref{fig:gost-round-func}).
+S-boxes are not defined in the
 original standard~\cite{GOST28147}. For some time they were considered to be
 another secret parameter, but such approach caused more problems than gained
 additional security. Use of different S-boxes set caused some cipher
@@ -436,9 +436,9 @@ throughout the Feistel network. During the last 8 rounds subkeys are fed in
 reverse order. Half blocks are not switched after the last round in order to
 make encryption and decryption procedures similar.
 
-However some recent works 
+However some recent works
 \cite{cryptoeprint-2011-626, Courtois:cryptoeprint_2011} claim the fastest attack on
-GOST has complexity $2^{224}$ and requires $2^{32}$ known plaintexts. 
+GOST has complexity $2^{224}$ and requires $2^{32}$ known plaintexts.
 
 \section{Construction of equations system for \gost}
 
@@ -447,17 +447,17 @@ equations for \gost\ is defined as follows.
 
 Consider variable format $X_{r, \, b}$, where $r$ denotes round for which the
 variable is defined and $b$ is a bit number of the block. Then defining one
-round of GOST cipher requires 4 sets of variables: 
+round of GOST cipher requires 4 sets of variables:
 \begin{enumerate}
-    \item $X_{r, \, 0 \hdots 63}$ for input block, 
+    \item $X_{r, \, 0 \hdots 63}$ for input block,
     \item $K_{r \% 8, \, 0 \hdots 31}$ for a subkey (where $\%$
-        denotes modulo reduction), 
-    \item $Y_{r, \, 0 \hdots 31}$ for the result of key addition, 
-    \item $Z_{r, \, 0 \hdots 31}$ for the result of S-box substitution. 
+        denotes modulo reduction),
+    \item $Y_{r, \, 0 \hdots 31}$ for the result of key addition,
+    \item $Z_{r, \, 0 \hdots 31}$ for the result of S-box substitution.
 \end{enumerate}
 
-Input to a key addition modulo $2^{32}$ are variables 
-$X_{r, \, 31 \hdots 63}$ of the right input half-block and 
+Input to a key addition modulo $2^{32}$ are variables
+$X_{r, \, 31 \hdots 63}$ of the right input half-block and
 $K_{r \% 8, \, 0 \hdots 31}$ of the subkey. The result of key injection is
 assigned to variables $Y_{r, \, 0 \hdots 31}$. \gost\ key injection
 transformation can be described with $93$ equations. Obtaining the equations
@@ -466,17 +466,17 @@ for modular addition is described in section~\ref{seq:key-add-eqn}.
 During this research the S-boxes used in GOST cipher implementation are those
 proposed in \cite{GOST3411} and given in appendix~\ref{app:gost-sboxes}. Every
 such S-box is defined by $21$ equations each containing up to $14$ monomials, so
-the total number of equations for S-box layer is $168$.  Input variables 
-$Y_{r, \, 0 \hdots 31}$ are passed to substitution layer which generates $32$ 
+the total number of equations for S-box layer is $168$.  Input variables
+$Y_{r, \, 0 \hdots 31}$ are passed to substitution layer which generates $32$
 output variables $Z_{r, \, 0 \hdots 31}$.
 
-Cyclic shift is equivalent to renaming variables $Z_{r, \, 0 \hdots 31}$ to 
+Cyclic shift is equivalent to renaming variables $Z_{r, \, 0 \hdots 31}$ to
 $Z_{r, \, \{21 \hdots 31, 0 \hdots 20\}}$. Equations for XORing round function
 output with the left input half-block and switching the half-blocks are
 trivial. The resulting polynomials of a single Feistel network round are then
 assigned to the next round variables $X_{r+1, \, 0 \hdots 63}$.
 
-Obtaining equations for modular addition described in details in 
+Obtaining equations for modular addition described in details in
 section~\ref{seq:key-add-eqn}.
 
 The chosen approach of constructing polynomial system for \gost\ cipher
@@ -486,7 +486,7 @@ polynomials in $4416$ variables. In case of using the subkeys in straight
 order (without reversing during last $8$ rounds) the number of polynomials and
 variables in the system stays the same. That means the reversing the subkeys
 during last $8$ rounds does not strengthen the cipher from algebraic point of
-view, but only complicates its implementation. 
+view, but only complicates its implementation.
 
 \section{Key recovery for 6 rounds of \gost}
 \label{sec:gost-key-rec}
@@ -519,7 +519,7 @@ break more rounds of the cipher.
 
 \section{Description of \misty\ cipher}
 
-\misty\ is a symmetric block cipher with a $128$-bit key, a $64$-bit block 
+\misty\ is a symmetric block cipher with a $128$-bit key, a $64$-bit block
 and a variable number of rounds that inherits Feistel
 structure~\cite{matsui1997new}. The algorithm was designed to be robust against
 linear and differential cryptanalysis and sustain efficiency on any platform.
@@ -528,7 +528,7 @@ specific for certain processor architecture.
 
 The cipher is also described in RFC~2994. It has recursive structure of nested
 Feistel networks -- the outter level Feistel network uses round function $FO$
-which itself represents another smaller Feistel network $FI$ 
+which itself represents another smaller Feistel network $FI$
 (figure~\ref{fig:misty_feistel}).
 
 The nested Feistel round functions $FO$ and $FI$ are presented on
@@ -541,12 +541,12 @@ figures~\ref{fig:misty_fo}~and~\ref{fig:misty_fi} respectively.
     \label{fig:misty_feistel}
 \end{figure}
 
-Key schedule is performed by iterative applying of $FI$ function to each 
+Key schedule is performed by iterative applying of $FI$ function to each
 $16$-bit chunk of the key (figure~\ref{fig:misty_key_schedule}). Hereby $128$
 additional subkey bits are generated.  Both the key and the subkey bits are used
 during enciphering.
 
-The key injecting function includes conjunction and disjunction operations and 
+The key injecting function includes conjunction and disjunction operations and
 is presented on figure~\ref{fig:misty_fl}.
 
 \begin{figure}[p]
@@ -595,7 +595,7 @@ $s_9$ is of degree 3. Equations for each S-box are defined in
         y_2 =& x_1 x_2 + x_0 x_2 x_3 + x_4 + x_1 x_4 + x_0 x_1 x_4 + x_0 x_5 + x_0 x_4 x_5 + \\
              & + x_3 x_4 x_5 + x_1 x_6 + x_3 x_6 + x_0 x_3 x_6 + x_4 x_6 + x_2 x_4 x_6 \\
         y_3 =& x_0 + x_1 + x_0 x_1 x_2 + x_0 x_3 + x_2 x_4 + x_1 x_4 x_5 + \\
-             & + x_2 x_6 + x_1 x_3 x_6 + x_0 x_4 x_6 + x_5 x_6 + 1 \\ 
+             & + x_2 x_6 + x_1 x_3 x_6 + x_0 x_4 x_6 + x_5 x_6 + 1 \\
         y_4 =& x_2 x_3 + x_0 x_4 + x_1 x_3 x_4 + x_5 + x_2 x_5 + x_1 x_2 x_5 + \\
              & + x_0 x_3 x_5 + x_1 x_6 + x_1 x_5 x_6 + x_4 x_5 x_6 + 1 \\
         y_5 =& x_0 + x_1 + x_2 + x_0 x_1 x_2 + x_0 x_3 + x_1 x_2 x_3 + x_1 x_4 + \\
@@ -649,24 +649,24 @@ explicitly defined.
 Nested structure of \misty\ results in big number of variables so they must be
 named carefully to avoid confusion. The following format was used for \misty\
 variables: \verb+R<n>_<func>_<op>_<bit>+, where \verb+n+ denotes number of
-current round, \verb+func+ stands for function to which variable belongs, 
+current round, \verb+func+ stands for function to which variable belongs,
 \verb+op+ is some operation inside the function, \verb+bit+ is the number of bit
 in a block. For example variable \verb+verb+n+ denotes number of
-current round, \verb+func+ stands for function to which variable belongs, 
+current round, \verb+func+ stands for function to which variable belongs,
 \verb+op+ is some operation inside the function, \verb+bit+ is the number of bit
 in a block. For example variable \verb+R5_FO_KO2_15+ stands for round $5$,
 function $FO$, operation of injecting subkey $KO_{i2}$, precisely bit $15$ of
 the subkey.
 
-Using the described method the full-scale system of equations for \misty\ 
-has been constructed and shown to have $3488$ equations in $3680$ variables. 
+Using the described method the full-scale system of equations for \misty\
+has been constructed and shown to have $3488$ equations in $3680$ variables.
 Because of nested structure too many
 variables are introduced and the system becomes underdefined and therefore
-unsolvable. To overcome such problem it is possible to apply Gr\"obner basis 
+unsolvable. To overcome such problem it is possible to apply Gr\"obner basis
 (described in~\ref{sec:groebner}) to some transformation for obtaining more
 equations and possibly eliminating some of the variables. It has been decided to
 post-process equations for S-box $S_7$ by computing the corresponding
-Gr\"obner basis. The resulting system has $8448$ equations in $3680$ variables, 
+Gr\"obner basis. The resulting system has $8448$ equations in $3680$ variables,
 so usage of Gr\"obner basis introduced another $5000$ equations.
 
 

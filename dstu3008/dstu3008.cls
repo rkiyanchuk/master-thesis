@@ -320,6 +320,7 @@ Scientific and Technical Reports.]
   \oldbibliography{#1}%
   \setlength{\itemsep}{-0.8ex}%
 }
+
 % Appendices
 % ----------
 
@@ -369,36 +370,36 @@ Scientific and Technical Reports.]
 \DeclareCaptionFont{white}{\color{black}}
 \DeclareCaptionFormat{listing}{{\parbox{\textwidth}{\normalsize\normalfont #1#2#3}}}
 \captionsetup[lstlisting]{
-format=listing,
-singlelinecheck=false,
+    format=listing,
+    singlelinecheck=false,
 }
 
 \lstdefinelanguage{Sage}[]{Python}
 {morekeywords={True,False,sage,with}, sensitive=true}
 
 \lstset{
-language=Sage,
-basicstyle=\footnotesize\ttfamily\singlespacing,
-extendedchars=false,
-inputencoding=utf8,  % listings file encoding
-keepspaces=true,  % need to correctly process spaces in cyrillic files
-keywordstyle=\textbf,
-xleftmargin=13pt,
-framexleftmargin=10pt,
-framexrightmargin=3pt,
-framexbottommargin=4pt,
-frame=single,  % adds a frame around the code
-captionpos=t,  % place position at top
-belowcaptionskip=0pt,
-tabsize=4,	% sets default tabsize to 4 spaces
-showspaces=false,  % show spaces adding particular underscores
-showstringspaces=false,  % underline spaces within strings
-showtabs=false,  % show tabs within strings adding particular underscores
-breaklines=true,  % sets automatic line breaking
-numbers=left,  % where to put the line-numbers
-numberstyle=\scriptsize,  % the size of the fonts that are used for the line-numbers
-stepnumber=1,  % the step between two line-numbers. If it's 1 each line will be numbered
-numbersep=15pt  % how far the line-numbers are from the code
+    language=Sage,
+    basicstyle=\footnotesize\ttfamily\singlespacing,
+    extendedchars=false,
+    inputencoding=utf8,  % listings file encoding
+    keepspaces=true,  % need to correctly process spaces in cyrillic files
+    keywordstyle=\textbf,
+    xleftmargin=13pt,
+    framexleftmargin=10pt,
+    framexrightmargin=3pt,
+    framexbottommargin=4pt,
+    frame=single,  % adds a frame around the code
+    captionpos=t,  % place position at top
+    belowcaptionskip=0pt,
+    tabsize=4,	% sets default tabsize to 4 spaces
+    showspaces=false,  % show spaces adding particular underscores
+    showstringspaces=false,  % underline spaces within strings
+    showtabs=false,  % show tabs within strings adding particular underscores
+    breaklines=true,  % sets automatic line breaking
+    numbers=left,  % where to put the line-numbers
+    numberstyle=\scriptsize,  % the size of the fonts that are used for the line-numbers
+    stepnumber=1,  % the step between two line-numbers. If it's 1 each line will be numbered
+    numbersep=15pt  % how far the line-numbers are from the code
 }
 
 

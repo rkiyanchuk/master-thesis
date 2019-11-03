@@ -11,7 +11,7 @@ adversary's malicious actions under any predetermined conditions.
 
 However, as practice shows, it's unfeasible to take into account all possible
 attacks that may be invented in the future due to technological and scientific
-innovations during the development stage. Therefore, the most widespread 
+innovations during the development stage. Therefore, the most widespread
 method for analysing computationally strong cryptographic primitives is
 complexity evaluation of every known applicable attack.
 
@@ -38,7 +38,7 @@ ability to encrypt plaintexts or decrypt ciphertexts of her choice
 respectively. So the cipher needs to have such plaintext and ciphertext
 spaces that would make it infeasible for the attacker to get full dictionary of
 all possible plaintexts and corresponding
-ciphertexts~\cite{menezes:applied_cryptography}. 
+ciphertexts~\cite{menezes:applied_cryptography}.
 
 Related key attacks exploits possible relations between encryption keys to
 break the cryptographic system~\cite{StampLow:AppliedCryptanalysis}.
@@ -51,11 +51,11 @@ transformation against these types of attacks ~\cite{Quisquater:sidechannel}.
 
 A cipher is considered to be insecure if any type of attack exists that allows
 to get some information about the key with a complexity lower than a brute
-force. 
+force.
 
 \section{Block ciphers}
 
-A block cipher is a function which maps $n$-bit plaintext blocks to $n$-bit 
+A block cipher is a function which maps $n$-bit plaintext blocks to $n$-bit
 ciphertext blocks, parameterized by a $k$-bit key
 $K$~\cite{menezes:applied_cryptography}. Here $n$ is called the blocklength.
 The encryption key $K$ has to be random. In order to always provide unique and
@@ -73,18 +73,18 @@ A symmetric block cipher may be represented as an algebraic
 system~\cite{babash:cryptography}
 \begin{equation}
 \label{eqn:block-algebraic}
-\Sigma_{A} = \left< X, K, Y, E, D \right> \enspace, 
+\Sigma_{A} = \left< X, K, Y, E, D \right> \enspace,
 \end{equation}
 
-    where $X$ is a plaintext space defined over finite alphabet $Q_X$, \\ 
+    where $X$ is a plaintext space defined over finite alphabet $Q_X$, \\
 $K$ --- a key set (usually defined by fixed length strings over $Q_X$), \\
 $Y$ --- ciphertext space defined over finite alphabet $Q_Y$, \\
 $E: X \times K \rightarrow Y$ --- a set of enciphering rules based on
 parametrized maps $e_k(x) = y$ for which $k \in K$, $x \in X$, $y \in Y$. \\
 Mappings $e_k(\cdot)$ and $d_k(\cdot)$ for any $k \in K$  are bijective and
 ensure satisfaction of both conditions $d_k(e_k(x)) = x$ and $e_k(d_k(y)) = y$.
-Plaintext and ciphertext spaces of all widespread modern symmetric ciphers 
-coincide ($Q_X = Q_Y$), so such ciphers are therefore endomorphic, that is 
+Plaintext and ciphertext spaces of all widespread modern symmetric ciphers
+coincide ($Q_X = Q_Y$), so such ciphers are therefore endomorphic, that is
 \mbox{$X = Y$}.
 For cryptographically secure ciphers the sets of encrypting and decrypting
 rules must have random mapping properties, and $e_k(\cdot)$, $d_k(\cdot)$ must
@@ -114,8 +114,8 @@ decryption impossible. Such encryption mode is also more secure for enciphering
 correlated data~\cite{menezes:applied_cryptography}.
 
 Cipher feedback mode (CFB) shown on figure~\ref{fig:mode-cfb} turns a block
-cipher into self-synchronizing 
-(see section \ref{sec:stream_ciphers_classification}) stream cipher. 
+cipher into self-synchronizing
+(see section \ref{sec:stream_ciphers_classification}) stream cipher.
 \begin{figure}[htbp]
 	\centering
 	\includegraphics[scale=0.6]{images/modes_cbc}
@@ -144,13 +144,13 @@ plaintext) and parallel processing capability.
 \section{Stream ciphers}
 
 The distinct difference between stream ciphers and block ciphers was for the
-first time defined by Rainer Rueppel~\cite{robshaw:rsa:streamciphers}: 
+first time defined by Rainer Rueppel~\cite{robshaw:rsa:streamciphers}:
 
 ``Block ciphers operate with a fixed transformation on large blocks of
 plaintext data; stream ciphers operate with a time-varying transformation on
 individual plaintext digits''.
 
-Stream ciphers gained great progress since Shannon's analysis of the 
+Stream ciphers gained great progress since Shannon's analysis of the
 Vernam cipher where he proved it to be theoretically
 unbreakable~\cite{shannon:secrecy}. However such cryptosystems were complex and
 unprofitable to implement because of the need of secret channel to exchange key
@@ -180,7 +180,7 @@ In synchronous stream ciphers the next state of the automaton is independent of
 plaintext and ciphertext. Such ciphers have no error-propagation and
 consequently don't detect errors during decryption. This fact allows an attacker
 to inconspicuously alter ciphertext which will be successfully decrypted to a
-different plaintext. Another significance consists in the fact that encrypting 
+different plaintext. Another significance consists in the fact that encrypting
 and decrypting devices must constantly stay synchronized. Otherwise the
 decryption will fail.
 
@@ -259,7 +259,7 @@ left-most bit (figure \ref{fig:lfsr-galois}).
 \end{figure}
 A sequence generated by LFSR is linear by itself and therefore useless for
 cryptography. It is possible to recover the LFSR structure from intercepting
-only $2n$ bits of the generator using Berlekamp-Massey algorithm~\cite{joux:algorithmic_cryptanalysis}. 
+only $2n$ bits of the generator using Berlekamp-Massey algorithm~\cite{joux:algorithmic_cryptanalysis}.
 
 Feedback with carry shift registers (FCSR) are similar to LFSRs but instead of
 XORing the tapping sequence bits are added to the carry register. The result
@@ -270,7 +270,7 @@ The carry register has to be at least $\log_2 t$, where $t$ is the number of
 taps. Thus, before the carry register is
 filled there are some states of FCSR that never repeat. The maximum period of
 FCSR differs from the one of LFSR. It equals to $q - 1$, where $q$ is the
-connection integer and defined as 
+connection integer and defined as
 \mbox{$q = 2 q_1 + 2^2 q_2 + 2^4 q_4 + \cdots + 2^n q_n - 1$}; $q$ has to be a prime
 for which 2 is a primitive root. In fact not every initial state guarantees
 maximum period of the register. That means the all pseudo-random sequence
@@ -298,10 +298,10 @@ control, combination and filter generators allow to form a pseudo-random
 sequence satisfying all statistic requirements and yet resistant to known
 attacks.
 
-\subsubsection{Generators}                          
+\subsubsection{Generators}
 
 The use of feedback shift registers for cryptographic applications is possible by
-combining several registers into a single generator. 
+combining several registers into a single generator.
 
 The technique of combining outputs of several
 registers by a Boolean function is called \textit{combination generator}
@@ -309,7 +309,7 @@ registers by a Boolean function is called \textit{combination generator}
 composed on $n$ LFSRs is given by
 \begin{equation}
     \label{eqn:comb-gen-seq}
-    s_t = f(u_1, u_2, \cdots, u_n), \enspace \forall t \leq 0 \enspace, 
+    s_t = f(u_1, u_2, \cdots, u_n), \enspace \forall t \leq 0 \enspace,
 \end{equation}
 
 where $u_i$ denotes the sequence generated by the $i$-th LFSR and $f$ is a
@@ -325,10 +325,10 @@ order to produce pseudo-random sequences.
 
 Linear complexity of the keystream generated by a combination generator composed
 of $n$ LFSRs with primitive feedback polynomials combined by a Boolean function
-$f$ equals to 
+$f$ equals to
 \begin{equation}
     \label{eqn:lin-complexity}
-    f(L_1, L_2, \cdots, L_n) \enspace, 
+    f(L_1, L_2, \cdots, L_n) \enspace,
 \end{equation}
 
 where the algebraic normal form of $f$ is evaluated over
@@ -336,7 +336,7 @@ integers and all lengths $L_1, \cdots, L_n$ are distinct and greater than 2.
 High linear complexity of the generator is required to ensure that
 Berlekamp-Massey algorithm is computationally infeasible.
 
-Combination generators are vulnerable to correlation attacks based on 
+Combination generators are vulnerable to correlation attacks based on
 recovering the initial states of all LFSRs from the knowledge of some sequence
 produced by the generator (known plaintext attack). In order to protect
 generators from this kind of attacks, the LFSR feedback polynomials should not
@@ -347,8 +347,8 @@ between high algebraic degree, high nonlinearity and high correlation-immunity
 may be outwitted replacing the combining function by a finite state automaton
 with memory.
 
-\textit{Filter generators}, in distinction of combination generators, consist of 
-single LFSR and its state is filtered by a nonlinear 
+\textit{Filter generators}, in distinction of combination generators, consist of
+single LFSR and its state is filtered by a nonlinear
 function~(figure~\ref{fig:filter-gen}). The output of the function is a
 pseudo-random sequence formed by the generator. Just like in combination
 generators the filtering function must be uniformly distributed and balanced.
@@ -369,16 +369,16 @@ in order to resist the fast correlation attack. The inversion attack depends on
 the largest spacing between two taps of the LFSR which conflicts with the
 statement that LFSRs should use dense polynomials. Also the greatest common
 divisor of all spaces between taps should be equal to 1 or else the inversion
-attack could be simplified~\cite{encyclopedia_of_cryptography}. 
+attack could be simplified~\cite{encyclopedia_of_cryptography}.
 
 Algebraic attacks are also applicable to filter generators since a keystream
 bit can be represented by a function of $L$ initial bits of the LFSR. Therefore,
 knowing $N$ keystream bits allows to form an algebraic system of $N$ equations
 of $L$ variables. Usage of Gr\"obner bases (which may be viewed as nonlinear
-generalization of Gaussian elimination for linear systems) enables an attacker 
+generalization of Gaussian elimination for linear systems) enables an attacker
 to lower the degree of equations until the recovery of LFSR initial state is
 possible by solving the algebraic system even with filtering function of high
-degree. 
+degree.
 
 Some designs of LFSR-based generators that promise to be secure are considered
 further.
@@ -404,11 +404,11 @@ the generator is described by algorithm~\ref{alg:stop-go-gen}.
     \SetKwFunction{Block}{Block}
     \DontPrintSemicolon
 
-    \If{\Output{\LfsrII at time $t-1$} == $0$ \Land \; 
+    \If{\Output{\LfsrII at time $t-1$} == $0$ \Land \;
     \Indp \Output{\LfsrII at time $t-2$} == $1$ \;}{
     \Block(\LfsrII at time $t$)
     }\;
-    \If{\Output{\LfsrI at time $t-1$} == $0$ \Land \; 
+    \If{\Output{\LfsrI at time $t-1$} == $0$ \Land \;
     \Indp \Output{\LfsrI at time $t-2$} == $1$ \Land \;
     \LfsrI clocked at time $t$ \;}{
     \Block(\LfsrII at time $t$)
@@ -472,10 +472,10 @@ form~\cite{dblp:conf/fse/klimovs05}:
         f_2([x]_0, [x]_1, [x]_2) \\
         \vdots \\
         f_{n-1}([x]_0, \cdots, [x]_{n-2}, [x]_{n-1})
-    \end{array} \right) \enspace, 
+    \end{array} \right) \enspace,
 \end{equation}
 
-where $\left[ f(x) \right]_k$ is the $k$-th output column and 
+where $\left[ f(x) \right]_k$ is the $k$-th output column and
 $[x]k-1, \cdots, [x]_0$ --- first $k$ input columns.
 
 The primary advantage of T-functions is computation efficiency both in hardware

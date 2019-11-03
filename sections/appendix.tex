@@ -92,14 +92,14 @@ class Gost:
             self.key_length = 8
         self.block_size = kwargs.get('block_size', 64)
         if self.block_size % self.SBOX_SIZE != 0 or self.block_size < 8:
-            raise ValueError('Block size must be multiple of 4 
+            raise ValueError('Block size must be multiple of 4
                     (due to SBox) and greater than 8 (due S-box size)')
         self.halfblock_size = self.block_size / 2
         self.key_order = kwargs.get('key_order', 'frwrev')
         if self.key_order not in ['frw', 'frwrev']:
             raise ValueError('Unsupported key ordering')
         if self.key_order is 'frwrev' and self.nrounds % 8 != 0:
-            raise ValueError('frwrev key ordering is only possible 
+            raise ValueError('frwrev key ordering is only possible
                     for nrounds to be multiple of 8')
         self.key_add = kwargs.get('key_add', 'mod')
         if self.key_add not in ['mod', 'xor']:
@@ -107,8 +107,8 @@ class Gost:
 
         self._init_sboxes(kwargs.get('sboxes', None))
         pre = kwargs.get('prefix', '')
-        self.var_names = {'key': 'K', 
-                'block': pre + 'X', 
+        self.var_names = {'key': 'K',
+                'block': pre + 'X',
                 'sum': pre + 'Y',
                 'sbox': pre + 'Z'}
         self.gen_ring()
@@ -128,7 +128,7 @@ class Gost:
             sboxes = self._default_sboxes
         else:
             for s in sboxes:
-                if len(s) != 2 ^ self.SBOX_SIZE: 
+                if len(s) != 2 ^ self.SBOX_SIZE:
                     raise TypeError('S-box must be 4x4 bits (0..15)')
         self.sboxes = [SBox(i, big_endian=False) for i in sboxes]
 
@@ -141,13 +141,13 @@ class Gost:
                             self.var_names['sum'], \
                             self.var_names['sbox']]
         for r in range(nr):
-            var_names += [self._varformatstr(v) % (r, b) 
+            var_names += [self._varformatstr(v) % (r, b)
                     for v in halfblock_vars for b in xrange(hbs)]
         for r in range(nr + 1):
-            var_names += [self._varformatstr(self.var_names['block']) % (r, b) 
+            var_names += [self._varformatstr(self.var_names['block']) % (r, b)
                     for b in xrange(bs)]
         self.ring = BooleanPolynomialRing(len(var_names), var_names, \
-                                            order='degrevlex') 
+                                            order='degrevlex')
         return self.ring
 
     def polynomial_system(self):
@@ -166,7 +166,7 @@ class Gost:
             next_xvars = map(self.ring, \
                     self.gen_vars(self.var_names['block'], i + 1))
             polynomials = []
-            
+
             if self.key_order == 'frwrev' and \
                     i >= (self.nrounds - self.key_length):
                 k = self.key_length - 1 - (i % self.key_length)
@@ -203,7 +203,7 @@ class Gost:
             pols = current_sbox.polynomials()
             gens = current_sbox.ring().gens()
             new_gens = yvars[nbit:nbit + self.SBOX_SIZE] + \
-                    zvars[nbit:nbit + self.SBOX_SIZE] 
+                    zvars[nbit:nbit + self.SBOX_SIZE]
             sub = dict(zip(gens, new_gens))
             pols = [p.subs(sub) for p in pols]
             polynomials += pols
@@ -212,7 +212,7 @@ class Gost:
     def __repr__(self):
         gost_id = 'GOST cipher '
         gost_id += '(Block Size = %d, Rounds = %d, '
-        gost_id += 'Key Addition = %s, Key Order = %s)' 
+        gost_id += 'Key Addition = %s, Key Order = %s)'
         params = (self.block_size, self.nrounds, self.key_add, self.key_order)
         return gost_id % params
 
@@ -229,11 +229,11 @@ class Gost:
                 result = (data + subkey) & modulo_mask
                 return [self.ring(i) for i in self.int2bits(result, hbs)]
             if self.key_add is 'xor':
-                return [x + y for x, y, in zip(a, b)]    
+                return [x + y for x, y, in zip(a, b)]
         else:
             if self.key_add is 'mod':
                 pols = list()
-                pols.append(a[0] + b[0] + r[0]) 
+                pols.append(a[0] + b[0] + r[0])
                 for i in range(0, hbs - 1):
                     pols.append(a[i] + a[i] * r[i] + a[i] * r[i+1] + a[i] *
                             a[i+1] + a[i] * b[i+1] + r[i] * r[i+1] + r[i] *
@@ -245,11 +245,11 @@ class Gost:
                             + b[i] + r[i+1] + a[i+1] + b[i+1])
                 return pols
             if self.key_add is 'xor':
-                return [x + y + z for x, y, z in zip(r, a, b)]    
+                return [x + y + z for x, y, z in zip(r, a, b)]
 
     def shift(self, halfblock):
         shift = ceil(self.halfblock_size / 3)
-        halfblock = halfblock[self.halfblock_size-shift:self.halfblock_size]+\ 
+        halfblock = halfblock[self.halfblock_size-shift:self.halfblock_size]+\
                 halfblock[0:self.halfblock_size-shift]
         return halfblock
 
@@ -340,7 +340,7 @@ class Gost:
             return self.bits2int(data)
 
     def random_key(self):
-        key = [list(random_vector(int(self.halfblock_size), x=2)) 
+        key = [list(random_vector(int(self.halfblock_size), x=2))
                 for _ in range(self.key_length)]
         key = [map(self.ring, i) for i in key]
         return key
@@ -350,7 +350,7 @@ class Gost:
 
     def test_mqsystem(self, f_):
         if f_.ring() is not self.ring:
-            raise TypeError('Tested MQ system has been generated by a ' 
+            raise TypeError('Tested MQ system has been generated by a '
                     'different GOST instance')
         f = deepcopy(f_)
         print 'Testing MQ system', f
@@ -377,11 +377,11 @@ class Gost:
 
     def test_cipher(self):
         keys = [
-                [0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0], 
+                [0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0],
                 [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, \
-                    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF], 
+                    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
                 [0x01234567, 0x89ABCDEF, 0x01234567, 0x89ABCDEF, \
-                    0x01234567, 0x89ABCDEF, 0x01234567, 0x89ABCDEF], 
+                    0x01234567, 0x89ABCDEF, 0x01234567, 0x89ABCDEF],
                 [0x6ebabf8d, 0x1a8cad60, 0x124744f9, 0xd400b5d8, \
                     0xa721e3fd, 0x11d0702d, 0x06fd4827, 0x476df4bf]
                 ]
@@ -414,7 +414,7 @@ class Gost:
             for k in keys:
                 for p in plain:
                     c = self.encrypt(p, k)
-                    expected = it.next() 
+                    expected = it.next()
                     if c != expected:
                         show_failed(p, k, c, expected)
                         return False
@@ -441,10 +441,10 @@ nr = 5
 bs = 64
 hbs = int(bs/2)
 varnames = ['a', 'b', 'c', 'd']
-gosts = [Gost(block_size=bs, 
-    rounds=nr, 
-    key_add='mod', 
-    key_order='frw', 
+gosts = [Gost(block_size=bs,
+    rounds=nr,
+    key_add='mod',
+    key_order='frw',
     prefix=i) for i in varnames]
 
 print 'constructing MQ systems...'
@@ -768,11 +768,11 @@ class Misty(object):
         if not r:
             y[6]  = x[6] ^^x[5] &x[3] ^^x[6] &x[3] &x[2] ^^x[5] &x[1] ^^x[6] &x[4] &x[1] ^^x[2] &x[1] ^^x[6] &x[5] &x[0] ^^x[4] &x[0] ^^x[6] &x[1] &x[0] ^^x[3] &x[1] &x[0] ^^1
             y[5]  = x[6] &x[4] ^^x[6] &x[2] ^^x[3] &x[2] ^^x[5] &x[1] ^^x[4] &x[2] &x[1] ^^x[0] ^^x[6] &x[0] ^^x[3] &x[0] ^^x[4] &x[3] &x[0] ^^x[5] &x[2] &x[0] ^^x[6] &x[1] &x[0] ^^1
-            y[4]  = x[5] &x[4] ^^x[6] &x[4] &x[3] ^^x[2] ^^x[5] &x[2] ^^x[6] &x[5] &x[2] ^^x[6] &x[1] ^^x[6] &x[2] &x[1] ^^x[3] &x[2] &x[1] ^^x[5] &x[0] ^^x[3] &x[0] ^^x[6] &x[3] &x[0] ^^x[2] &x[0] ^^x[4] &x[2] &x[0] 
+            y[4]  = x[5] &x[4] ^^x[6] &x[4] &x[3] ^^x[2] ^^x[5] &x[2] ^^x[6] &x[5] &x[2] ^^x[6] &x[1] ^^x[6] &x[2] &x[1] ^^x[3] &x[2] &x[1] ^^x[5] &x[0] ^^x[3] &x[0] ^^x[6] &x[3] &x[0] ^^x[2] &x[0] ^^x[4] &x[2] &x[0]
             y[3]  = x[6] ^^x[5] ^^x[6] &x[5] &x[4] ^^x[6] &x[3] ^^x[4] &x[2] ^^x[5] &x[2] &x[1] ^^x[4] &x[0] ^^x[5] &x[3] &x[0] ^^x[6] &x[2] &x[0] ^^x[1] &x[0] ^^1
             y[2]  = x[4] &x[3] ^^x[6] &x[2] ^^x[5] &x[3] &x[2] ^^x[1] ^^x[4] &x[1] ^^x[5] &x[4] &x[1] ^^x[6] &x[3] &x[1] ^^x[5] &x[0] ^^x[5] &x[1] &x[0] ^^x[2] &x[1] &x[0] ^^1
-            y[1]  = x[6] ^^x[5] ^^x[4] ^^x[6] &x[5] &x[4] ^^x[6] &x[3] ^^x[5] &x[4] &x[3] ^^x[5] &x[2] ^^x[6] &x[4] &x[2] ^^x[6] &x[1] ^^x[6] &x[5] &x[1] ^^x[3] &x[1] ^^x[6] &x[0] ^^x[4] &x[1] &x[0] 
-            y[0]  = x[6] &x[5] ^^x[3] ^^x[6] &x[3] ^^x[4] &x[3] &x[2] ^^x[6] &x[1] ^^x[4] &x[1] ^^x[3] &x[1] ^^x[5] &x[3] &x[1] ^^x[5] &x[0] ^^x[5] &x[4] &x[0] ^^x[6] &x[3] &x[0] ^^x[2] &x[0] ^^x[4] &x[1] &x[0] 
+            y[1]  = x[6] ^^x[5] ^^x[4] ^^x[6] &x[5] &x[4] ^^x[6] &x[3] ^^x[5] &x[4] &x[3] ^^x[5] &x[2] ^^x[6] &x[4] &x[2] ^^x[6] &x[1] ^^x[6] &x[5] &x[1] ^^x[3] &x[1] ^^x[6] &x[0] ^^x[4] &x[1] &x[0]
+            y[0]  = x[6] &x[5] ^^x[3] ^^x[6] &x[3] ^^x[4] &x[3] &x[2] ^^x[6] &x[1] ^^x[4] &x[1] ^^x[3] &x[1] ^^x[5] &x[3] &x[1] ^^x[5] &x[0] ^^x[5] &x[4] &x[0] ^^x[6] &x[3] &x[0] ^^x[2] &x[0] ^^x[4] &x[1] &x[0]
             return y
         else:
             # Process variables over Boolean Polynomial Ring correctly.
@@ -1445,13 +1445,13 @@ def solve_joined_systems():
 
 \bibitem{Kiyanchuk:2012:kyiv}
 \BibEmph{Oliynykov R. V., Kiyanchuk R. I., Gorbenko I. D.}
-\newblock {Algebraic cryptanalysis of \gost}~ 
-\newblock {XV Internationa scientifically-practical conference 22--25 May, -- 2012}~/ 
+\newblock {Algebraic cryptanalysis of \gost}~
+\newblock {XV Internationa scientifically-practical conference 22--25 May, -- 2012}~/
 Kharkiv National University of Radio and Electronics. \BibDash Kyiv, 2012. \BibDash {P.}~130 -- 131.
 
 \bibitem{Kiyanchuk:2013:MMF}
-\BibEmph{Kiyanchuk~R.~I.} \newblock {Algebraic cryptanalysis of \gost}~ 
-\newblock {Radioelectronics and youth in XXI century}~/ 
+\BibEmph{Kiyanchuk~R.~I.} \newblock {Algebraic cryptanalysis of \gost}~
+\newblock {Radioelectronics and youth in XXI century}~/
 Kharkiv National University of Radio and Electronics.\BibDash Kharkiv, 2013. \BibDash {P.}~119 -- 120.
 
 \end{thebibliography}
