@@ -14,11 +14,9 @@
 }
 
 % Condition whether Occupational Safety and Health (OSH) chapter is included.
+% It's a dumb requirement by the university.
 \newif\ifosh
-
-% To include OSH chapter use \oshtrue 
-\oshtrue
-
+\oshfalse  % To include OSH chapter use \oshtrue
 \ifosh
     \newcommand{\osh}{\input{sections/labour.tex}}
 \else
@@ -49,14 +47,14 @@
 % Creative Commons License.
 \begin{center}
 \leavevmode
-\includegraphics[width=1in]{images/cc-by-nc-nd.png}
+\includegraphics[width=1in]{images/cc-by.png}
 \label{fig:cc}
 \end{center}
 \begin{center}
 %insert a link to the licence and its description below
 This thesis is licensed under a \\
-\href{http://creativecommons.org/licenses/by-nc-nd/3.0/}
-{Creative Commons Attribution-Non~Commercial-No~Derivatives 4.0 International License.}
+\href{http://creativecommons.org/licenses/by/4.0/}
+{Creative Commons Attribution 4.0 International License.}
 \end{center}
 \newpage
 
