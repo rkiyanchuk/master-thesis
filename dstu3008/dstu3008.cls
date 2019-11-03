@@ -9,18 +9,11 @@ Scientific and Technical Reports.]
 
 % DSTU 3008 implies A4 paper format.
 \PassOptionsToClass{a4paper, 14pt}{extreport}
+
 % Assume that any undefined option will be understood by the base class:
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{extreport}}
 \ProcessOptions\relax
 \LoadClass{extreport}
-
-% Options for online and hardcopy versions.
-\newif\ifonline
-\onlinetrue
-\DeclareOption{online}{\onlinetrue}
-\DeclareOption{hardcopy}{\onlinefalse}
-\ProcessOptions
-
 
 % Functional packages for generating correct PDF
 % ==============================================
@@ -414,22 +407,12 @@ numbersep=15pt  % how far the line-numbers are from the code
 
 \RequirePackage{hyperref}
 
-\ifonline
 \hypersetup{
-unicode=true,
-colorlinks = true,
-linkcolor = black,
-citecolor = green,
-urlcolor = blue,
+    unicode=true,
+    colorlinks = true,
+    linkcolor = black,
+    citecolor = black,
+    urlcolor = black,
 }
-\else
-\hypersetup{
-unicode=true,
-colorlinks = true,
-linkcolor = black,
-citecolor = black,
-urlcolor = black,
-}
-\fi
 
 \newcommand{\keywords}[1]{\vspace{1em}\sloppy \MakeUppercase{#1}.\fussy}
